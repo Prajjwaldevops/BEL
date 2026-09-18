@@ -96,8 +96,34 @@ Users connect their own Web3 wallets to interact with blockchain features. The b
 - **Encrypted Sensitive Fields:** `criminal_check_status`, biometric photos
 - **Access Logging:** Every sensitive field read creates audit trail
 - **Row-Level Security:** Supabase RLS policies per role
-- **Time-Bound Access:** Auto-expiring permissions with cron revocation
+- **Time-Bound Access:** Auto-expiring permissions with backend scheduler
 - **Multi-Sig Approvals:** Critical actions require 2+ admin signatures
+- **Rate Limiting:** IP-based and user-based request throttling
+- **Security Incidents:** Automated detection and incident management
+- **Guardian Recovery:** Multi-guardian account recovery system
+- **Gas Cost Dashboard:** Real-time blockchain transaction monitoring
+- **Security Posture:** Compliance tracking (SOC2, GDPR, HIPAA)
+- **Verifiable Credentials:** W3C-compliant digital credentials
+
+## 🕒 Backend Scheduler
+
+The platform uses **node-cron** for automated tasks - a free, self-hosted alternative to Vercel cron jobs.
+
+**Scheduled Tasks:**
+- Every 5 minutes: Process audit logs and detect suspicious activity
+- Every hour: Revoke expired time-bound access grants
+- Daily at 2 AM UTC: Calculate security posture scores
+
+**Management:**
+```bash
+# Get scheduler status
+GET /api/scheduler/status
+
+# Manually trigger task (admin only)
+POST /api/scheduler/trigger
+```
+
+📖 Read more: [docs/BACKEND_SCHEDULER.md](docs/BACKEND_SCHEDULER.md)
 - **Progressive Lockout:** Rate limiting + escalating login protection
 
 ## 🧪 Testing

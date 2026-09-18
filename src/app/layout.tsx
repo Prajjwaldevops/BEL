@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
 import "./globals.css";
+import '@/lib/init-scheduler'; // Initialize backend scheduler
 
 const inter = Inter({
   variable: "--font-inter",
