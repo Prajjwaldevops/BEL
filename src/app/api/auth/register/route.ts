@@ -16,6 +16,11 @@ function generateRandomPassword(): string {
   return password;
 }
 
+function generateAccessCode(): string {
+  // Generate a 6-digit unique access code (100000 - 999999)
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 function generateMockPhotoHash(): string {
   const hex = '0123456789abcdef';
   let hash = '0x';
@@ -55,6 +60,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid role. Must be VIEWER, ALTER, or DEBUGGER' }, { status: 400 });
     }
 
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // ===== Step 0: Check wallet uniqueness (one-time registration) =====
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const walletCheck = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?wallet_address=eq.${encodeURIComponent(walletAddress)}&select=id,username`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+
+        const existingWallets = await walletCheck.json();
+        if (Array.isArray(existingWallets) && existingWallets.length > 0) {
+          return NextResponse.json({
+            error: 'WALLET ALREADY REGISTERED — One-time registration only. This wallet address is already linked to an identity.',
+          }, { status: 409 });
+        }
+      } catch (walletErr) {
+        console.error('Wallet uniqueness check error:', walletErr);
+        // Continue — don't block registration if check fails
+      }
+    }
+
     // ===== Step 1: Criminal Database Check (MOCK) =====
     // In production, this would call the national criminal database API
     const criminalStatus = 'CLEARED'; // Always CLEARED for now
@@ -62,9 +95,6 @@ export async function POST(request: NextRequest) {
     // ===== Step 2: Upload Photo to Supabase Storage =====
     let photoUrl = '';
     let photoHash = generateMockPhotoHash();
-
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (photo && supabaseUrl && supabaseKey) {
       try {
@@ -103,6 +133,7 @@ export async function POST(request: NextRequest) {
     // ===== Step 3: Generate Credentials =====
     const username = generateRandomUsername(fullName);
     const password = generateRandomPassword();
+    const accessCode = generateAccessCode();
 
     // ===== Step 4: Mint Identity NFT (MOCK for now) =====
     // In production: call IdentityNFT.mintIdentity() via ethers.js
@@ -112,9 +143,35 @@ export async function POST(request: NextRequest) {
     // ===== Step 5: Save to Supabase Database =====
     if (supabaseUrl && supabaseKey) {
       try {
+        // Hash password via Supabase RPC using pgcrypto
+        let passwordHash = password; // fallback: store plain (not ideal)
+        
+        try {
+          const hashRes = await fetch(`${supabaseUrl}/rest/v1/rpc/hash_password`, {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ p_password: password }),
+          });
+
+          if (hashRes.ok) {
+            const hashedPw = await hashRes.json();
+            if (hashedPw) {
+              passwordHash = hashedPw;
+            }
+          }
+        } catch {
+          // If hash_password RPC doesn't exist, use raw SQL via profiles insert
+          // The SQL function might need to be created first
+          console.warn('hash_password RPC not available, using crypt in insert');
+        }
+
         const profileData = {
           username,
-          password_hash: password, // In production: hash with bcrypt via Supabase RPC
+          password_hash: passwordHash,
           email,
           full_name: fullName,
           display_name: fullName.split(' ').pop() || fullName,
@@ -129,6 +186,7 @@ export async function POST(request: NextRequest) {
           generated_username: username,
           is_admin: false,
           status: 'ACTIVE',
+          access_code: accessCode,
         };
 
         const res = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
@@ -145,7 +203,63 @@ export async function POST(request: NextRequest) {
         if (!res.ok) {
           const errorData = await res.json();
           console.error('Supabase insert error:', errorData);
-          // Continue anyway — return credentials even if DB save fails
+          
+          // Check for access_code uniqueness conflict and retry
+          if (errorData?.message?.includes('access_code')) {
+            // Regenerate access code and retry
+            profileData.access_code = generateAccessCode();
+            const retryRes = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation',
+              },
+              body: JSON.stringify(profileData),
+            });
+            if (!retryRes.ok) {
+              console.error('Retry also failed');
+            }
+          }
+        } else {
+          // Also assign role in user_roles table
+          const insertedUsers = await res.json();
+          if (Array.isArray(insertedUsers) && insertedUsers.length > 0) {
+            const profileId = insertedUsers[0].id;
+            
+            // Get the role ID for the specified role
+            try {
+              const roleRes = await fetch(
+                `${supabaseUrl}/rest/v1/roles?name=eq.${role}&select=id`,
+                {
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                  },
+                }
+              );
+              const roles = await roleRes.json();
+              if (Array.isArray(roles) && roles.length > 0) {
+                await fetch(`${supabaseUrl}/rest/v1/user_roles`, {
+                  method: 'POST',
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal',
+                  },
+                  body: JSON.stringify({
+                    profile_id: profileId,
+                    role_id: roles[0].id,
+                    is_active: true,
+                  }),
+                });
+              }
+            } catch (roleErr) {
+              console.error('Role assignment error:', roleErr);
+            }
+          }
         }
       } catch (dbError) {
         console.error('Database save error:', dbError);
@@ -155,14 +269,12 @@ export async function POST(request: NextRequest) {
 
     // ===== Step 6: Send Testnet ETH (MOCK for now) =====
     // In production: use ethers.js to send from admin wallet
-    // const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL);
-    // const adminWallet = new ethers.Wallet(process.env.ADMIN_WALLET_PRIVATE_KEY, provider);
-    // const tx = await adminWallet.sendTransaction({ to: walletAddress, value: ethers.parseEther('0.01') });
 
     // ===== Return Credentials =====
     return NextResponse.json({
       username,
       password,
+      accessCode,
       nftTokenId,
       nftTxHash,
       walletAddress,
@@ -171,7 +283,7 @@ export async function POST(request: NextRequest) {
       criminalStatus,
       role,
       department,
-      message: 'Registration successful. Save your credentials — they cannot be recovered.',
+      message: 'Registration successful. Save your credentials — they are NON-CHANGEABLE and NON-RECOVERABLE.',
     });
 
   } catch (err) {

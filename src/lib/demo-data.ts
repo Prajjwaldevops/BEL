@@ -9,7 +9,7 @@ import type { UserRole } from './constants';
 
 export interface DemoUser {
   id: string;
-  clerkId: string;
+  profileId: string;
   name: string;
   email: string;
   role: UserRole;
@@ -112,7 +112,7 @@ export interface DemoSecurityEvent {
 export const demoUsers: DemoUser[] = [
   {
     id: 'usr-dbg-001',
-    clerkId: 'clerk_dbg',
+    profileId: 'profile_dbg',
     name: 'Debug Inspector',
     email: 'debugger@bel-sentinel.gov',
     role: 'DEBUGGER',

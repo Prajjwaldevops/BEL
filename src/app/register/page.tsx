@@ -17,6 +17,7 @@ type RegistrationStep = 'auth_check' | 'form' | 'criminal_check' | 'processing' 
 interface RegistrationResult {
   username: string;
   password: string;
+  accessCode: string;
   nftTokenId: string;
   nftTxHash: string;
   walletAddress: string;
@@ -584,6 +585,25 @@ export default function RegisterPage() {
                   </p>
                 </div>
 
+                {/* 6-Digit Access Code — Highlighted */}
+                <div className="px-3 py-3 border-2 border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.05)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[8px] text-[#ef4444] tracking-[0.15em] font-bold" style={{ fontFamily: 'var(--font-mono)' }}>⚠ 6-DIGIT ACCESS CODE — NON-RECOVERABLE</div>
+                      <div className="text-2xl font-bold text-white mt-1 tracking-[0.5em]" style={{ fontFamily: 'var(--font-mono)' }}>
+                        {result.accessCode}
+                      </div>
+                    </div>
+                    <button onClick={() => copyToClipboard(result.accessCode, 'ACCESS_CODE')}
+                      className="p-1.5 rounded hover:bg-[rgba(255,255,255,0.05)] transition-colors">
+                      {copied === 'ACCESS_CODE' ? <CheckCircle2 className="w-4 h-4 text-[#00ff88]" /> : <Copy className="w-4 h-4 text-[#ef4444]" />}
+                    </button>
+                  </div>
+                  <p className="text-[8px] text-[#ef4444] mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                    REQUIRED FOR DOCUMENT ACCESS — STORE SECURELY
+                  </p>
+                </div>
+
                 {/* Credentials */}
                 <div className="space-y-2">
                   {[
@@ -609,10 +629,10 @@ export default function RegisterPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.15)]">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#f59e0b] flex-shrink-0" />
-                  <span className="text-[9px] text-[#f59e0b]" style={{ fontFamily: 'var(--font-mono)' }}>
-                    SAVE THESE CREDENTIALS — THEY CANNOT BE RECOVERED
+                <div className="flex items-center gap-2 px-3 py-2.5 border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.05)]">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#ef4444] flex-shrink-0" />
+                  <span className="text-[9px] text-[#ef4444]" style={{ fontFamily: 'var(--font-mono)' }}>
+                    ALL CREDENTIALS ARE NON-CHANGEABLE & NON-RECOVERABLE — SAVE IMMEDIATELY
                   </span>
                 </div>
 

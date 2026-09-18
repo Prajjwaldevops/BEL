@@ -65,14 +65,8 @@ export default function Navbar() {
 
         {/* CTA — right side */}
         <div className="hidden md:flex items-center gap-5">
-          <a
-            href="#"
-            className="text-sm text-[#a09cb0] hover:text-white transition-colors"
-          >
-            Log in
-          </a>
-          <GlowButton size="sm" href="/dashboard">
-            Try for free
+          <GlowButton size="sm" href="/login">
+            Login
           </GlowButton>
         </div>
 
@@ -106,8 +100,8 @@ export default function Navbar() {
                 </a>
               ))}
               <div className="pt-4 border-t border-[rgba(124,92,252,0.1)]">
-                <GlowButton size="md" className="w-full" href="/dashboard">
-                  Try for free
+                <GlowButton size="md" className="w-full" href="/login">
+                  Login
                 </GlowButton>
               </div>
             </div>
