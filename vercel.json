@@ -1,0 +1,36 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-expired-tokens",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/process-audit-batch",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-login-attempts",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/expire-approvals",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/revoke-expired-access",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-gas-prices",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/reset-gas-budgets",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/update-security-posture",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

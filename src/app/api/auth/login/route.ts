@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimitMiddleware, getUserAgentFromRequest } from '@/middleware/rate-limit';
+import { recordLoginAttempt, getClientIP } from '@/lib/rate-limit';
 
 // Simple JWT-like token generation (for demo/hackathon — use proper JWT library in production)
 function generateToken(payload: Record<string, unknown>): string {
@@ -9,11 +11,40 @@ function generateToken(payload: Record<string, unknown>): string {
 }
 
 export async function POST(request: NextRequest) {
+  const ipAddress = await getClientIP();
+  const userAgent = getUserAgentFromRequest(request);
+  
   try {
     const { username, password } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
+    }
+
+    // RATE LIMITING CHECK
+    const rateLimitCheck = await rateLimitMiddleware({
+      username,
+      request,
+    });
+
+    // If rate limited, return error response
+    if (!rateLimitCheck.allowed && rateLimitCheck.response) {
+      // Record the blocked attempt
+      await recordLoginAttempt({
+        username,
+        ipAddress,
+        userAgent,
+        success: false,
+        failureReason: 'RATE_LIMIT_EXCEEDED',
+      });
+      
+      return rateLimitCheck.response;
+    }
+
+    // If CAPTCHA is required but not provided (tier 1 warning)
+    if (rateLimitCheck.requiresCaptcha) {
+      // You can add CAPTCHA validation here in the future
+      // For now, just log the warning in the response
     }
 
     // For the admin account — hardcoded check (admin/admin123)
@@ -24,6 +55,14 @@ export async function POST(request: NextRequest) {
     const isDebugger = username === 'debugger' && password === 'debug123';
 
     if (isDebugger) {
+      // Record successful login
+      await recordLoginAttempt({
+        username,
+        ipAddress,
+        userAgent,
+        success: true,
+      });
+      
       const token = generateToken({
         userId: 'debugger-001',
         username: 'debugger',
@@ -67,6 +106,15 @@ export async function POST(request: NextRequest) {
           const users = await res.json();
 
           if (!Array.isArray(users) || users.length === 0) {
+            // Record failed login
+            await recordLoginAttempt({
+              username,
+              ipAddress,
+              userAgent,
+              success: false,
+              failureReason: 'USER_NOT_FOUND',
+            });
+            
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
           }
 
@@ -86,8 +134,27 @@ export async function POST(request: NextRequest) {
           const verifyResult = await verifyRes.json();
 
           if (!verifyResult) {
+            // Record failed login
+            await recordLoginAttempt({
+              username,
+              email: user.email,
+              ipAddress,
+              userAgent,
+              success: false,
+              failureReason: 'INVALID_PASSWORD',
+            });
+            
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
           }
+
+          // Record successful login
+          await recordLoginAttempt({
+            username,
+            email: user.email,
+            ipAddress,
+            userAgent,
+            success: true,
+          });
 
           // Update last_active_at
           await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
@@ -129,10 +196,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Record failed login - no Supabase user found
+      await recordLoginAttempt({
+        username,
+        ipAddress,
+        userAgent,
+        success: false,
+        failureReason: 'INVALID_CREDENTIALS',
+      });
+
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // Admin login success
+    await recordLoginAttempt({
+      username,
+      ipAddress,
+      userAgent,
+      success: true,
+    });
     const token = generateToken({
       userId: 'admin-001',
       username: 'admin',
@@ -157,7 +239,8 @@ export async function POST(request: NextRequest) {
         isAdmin: true,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

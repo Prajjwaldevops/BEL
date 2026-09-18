@@ -61,7 +61,8 @@ export const ROLES = {
 } as const;
 
 // ===== REGISTRATION =====
-export const REGISTRATION_SECRET_KEY = '34567890';
+// ⚠️ DEPRECATED: Static registration_secret_key has been removed
+// Use invite token system instead: /api/invite-tokens/create
 export const GAS_FEE_PER_ACTION = 0.00001; // ETH
 export const GAS_FEE_WEI = '10000000000000'; // 0.00001 ETH in wei
 export const TESTNET_ETH_SEND_AMOUNT = '0.01'; // ETH sent to new users

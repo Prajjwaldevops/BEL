@@ -2,7 +2,9 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title IdentityNFT
@@ -10,9 +12,20 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *      Each NFT stores:
  *        - Webcam photo hash (stored on Cloudflare R2)
  *        - User metadata URI (name, department, role, criminal check status)
- *      Only ADMIN (contract owner) can mint identity NFTs.
+ *      
+ *      Security hardening:
+ *      - AccessControl for role-based permissions (replaces single owner)
+ *      - ReentrancyGuard to prevent reentrancy attacks
+ *      - Pausable for emergency stops
+ *      - Explicit role checks on all state-changing functions
+ *      
+ *      Roles:
+ *      - DEFAULT_ADMIN_ROLE: Can grant/revoke roles, pause contract
+ *      - MINTER_ROLE: Can mint identity NFTs (typically backend wallet)
  */
-contract IdentityNFT is ERC721URIStorage, Ownable {
+contract IdentityNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 private _nextTokenId;
 
     struct UserIdentity {
@@ -35,14 +48,22 @@ contract IdentityNFT is ERC721URIStorage, Ownable {
         string department,
         string photoHash
     );
+    event ContractPaused(address indexed by);
+    event ContractUnpaused(address indexed by);
 
-    constructor() ERC721("BEL Sentinel Identity", "BELID") Ownable(msg.sender) {
+    constructor() ERC721("BEL Sentinel Identity", "BELID") {
         _nextTokenId = 1; // Token IDs start at 1
+        
+        // Grant deployer all roles
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
     }
 
     /**
      * @dev Mint an identity NFT for a newly registered user.
-     *      Can only be called by the admin (owner).
+     *      Can only be called by accounts with MINTER_ROLE.
+     *      Protected against reentrancy.
      */
     function mintIdentity(
         address _wallet,
@@ -52,7 +73,10 @@ contract IdentityNFT is ERC721URIStorage, Ownable {
         string memory _role,
         string memory _department,
         string memory _criminalStatus
-    ) external onlyOwner returns (uint256) {
+    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused returns (uint256) {
+        require(_wallet != address(0), "Invalid wallet address");
+        require(bytes(_tokenURI).length > 0, "Token URI cannot be empty");
+        require(bytes(_photoHash).length > 0, "Photo hash cannot be empty");
         require(!hasMintedIdentity[_wallet], "Identity NFT already minted for this wallet");
 
         uint256 tokenId = _nextTokenId++;
@@ -81,7 +105,7 @@ contract IdentityNFT is ERC721URIStorage, Ownable {
      * @dev Get the identity data for a given token ID.
      */
     function getIdentity(uint256 _tokenId) external view returns (UserIdentity memory) {
-        require(ownerOf(_tokenId) != address(0), "Token does not exist");
+        require(_ownerOf(_tokenId) != address(0), "Token does not exist");
         return userIdentities[_tokenId];
     }
 
@@ -101,13 +125,52 @@ contract IdentityNFT is ERC721URIStorage, Ownable {
     }
 
     /**
-     * @dev Identity NFTs are soulbound — cannot be transferred.
+     * @dev Pause contract (emergency stop).
+     *      Only callable by PAUSER_ROLE.
      */
-    function transferFrom(address, address, uint256) public pure override(ERC721, IERC721) {
-        revert("Identity NFTs are soulbound and non-transferable");
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+        emit ContractPaused(msg.sender);
     }
 
-    function safeTransferFrom(address, address, uint256, bytes memory) public pure override(ERC721, IERC721) {
-        revert("Identity NFTs are soulbound and non-transferable");
+    /**
+     * @dev Unpause contract.
+     *      Only callable by PAUSER_ROLE.
+     */
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
+        emit ContractUnpaused(msg.sender);
+    }
+
+    /**
+     * @dev Identity NFTs are soulbound — cannot be transferred.
+     *      Overrides to block transfers while allowing minting.
+     */
+    function _update(address to, uint256 tokenId, address auth)
+        internal
+        override
+        returns (address)
+    {
+        address from = _ownerOf(tokenId);
+        
+        // Allow minting (from == address(0))
+        // Block all other transfers
+        if (from != address(0) && to != address(0)) {
+            revert("Identity NFTs are soulbound and non-transferable");
+        }
+        
+        return super._update(to, tokenId, auth);
+    }
+
+    /**
+     * @dev Override supportsInterface to include AccessControl
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721URIStorage, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }
