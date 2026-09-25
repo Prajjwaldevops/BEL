@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Canvas, useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import {
   Shield, User, Camera, Wallet, AlertTriangle,
   CheckCircle2, Loader2, ArrowRight, ArrowLeft,
@@ -22,6 +24,42 @@ interface RegistrationResult {
   nftTxHash: string;
   walletAddress: string;
   photoHash: string;
+}
+
+function FloatingBackgroundObjects() {
+  const groupRef = useRef<THREE.Group>(null);
+
+  const particles = useMemo(() => {
+    return Array.from({ length: 20 }).map(() => ({
+      position: [
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 10 - 5
+      ] as [number, number, number],
+      rotation: [Math.random() * Math.PI, Math.random() * Math.PI, 0] as [number, number, number],
+      scale: Math.random() * 0.3 + 0.05,
+      speed: Math.random() * 0.1 + 0.05,
+      color: Math.random() > 0.5 ? '#38bdf8' : '#fbbf24'
+    }));
+  }, []);
+
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    const t = state.clock.elapsedTime;
+    groupRef.current.rotation.y = t * 0.02;
+    groupRef.current.rotation.x = Math.sin(t * 0.02) * 0.05;
+  });
+
+  return (
+    <group ref={groupRef}>
+      {particles.map((p, i) => (
+        <mesh key={i} position={p.position} rotation={p.rotation} scale={p.scale}>
+          {i % 2 === 0 ? <boxGeometry args={[1, 1, 1]} /> : <icosahedronGeometry args={[1, 0]} />}
+          <meshBasicMaterial color={p.color} wireframe transparent opacity={0.15} />
+        </mesh>
+      ))}
+    </group>
+  );
 }
 
 export default function RegisterPage() {
@@ -99,7 +137,7 @@ export default function RegisterPage() {
         }
       } else {
         // Mock fallback if MetaMask is not installed
-        setWalletAddress('0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join(''));
+        setWalletAddress('0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''));
         setWalletConnected(true);
       }
     } catch {
@@ -115,7 +153,7 @@ export default function RegisterPage() {
       });
       streamRef.current = stream;
       setCameraActive(true);
-      
+
       // Wait for React to render the video element since it is conditionally rendered
       setTimeout(async () => {
         if (videoRef.current) {
@@ -268,11 +306,24 @@ export default function RegisterPage() {
   // ===== AUTH CHECK: Not admin =====
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#050508] flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'linear-gradient(rgba(124,92,252,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,252,0.3) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }} />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#020617]">
+        {/* Blurred Background Image */}
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat blur-[10px] scale-110 opacity-60"
+          style={{
+            backgroundImage: 'url("https://cdn.dribbble.com/userupload/48973425/file/0af8f9c2eb84552b5653bbe1fd327083.png?resize=1905x1072&vertical=center")',
+          }}
+        />
+        {/* Dimmer */}
+        <div className="absolute inset-0 z-0 bg-[#020617]/80" />
+
+        {/* 3D Moving Objects Canvas - Cyan & Amber Cyberpunk theme */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Canvas camera={{ position: [0, 0, 8], fov: 60 }}>
+            <FloatingBackgroundObjects />
+          </Canvas>
+        </div>
+
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -310,13 +361,23 @@ export default function RegisterPage() {
 
   // ===== RENDER (Admin authenticated) =====
   return (
-    <div className="min-h-screen bg-[#050508] flex items-center justify-center relative overflow-hidden py-8">
-      {/* Background */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{
-        backgroundImage: 'linear-gradient(rgba(124,92,252,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,252,0.3) 1px, transparent 1px)',
-        backgroundSize: '60px 60px',
-      }} />
-      <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-[#a855f7] rounded-full opacity-[0.03] blur-[120px]" />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden py-8 bg-[#020617]">
+      {/* Background - Match Login */}
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat blur-[1.5px] scale-110 opacity-60"
+        style={{
+          backgroundImage: 'url("https://cdn.dribbble.com/userupload/48973425/file/0af8f9c2eb84552b5653bbe1fd327083.png?resize=1905x1072&vertical=center")',
+        }}
+      />
+      {/* Dimmer */}
+      <div className="fixed inset-0 z-0 bg-[#020617]/80" />
+
+      {/* 3D Moving Objects Canvas - Cyan & Amber Cyberpunk theme */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <Canvas camera={{ position: [0, 0, 8], fov: 60 }}>
+          <FloatingBackgroundObjects />
+        </Canvas>
+      </div>
 
       <div className="relative z-10 w-full max-w-lg mx-4">
         {/* Header */}
@@ -341,11 +402,10 @@ export default function RegisterPage() {
             const isCurrent = i === currentIndex;
             return (
               <div key={label} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[8px] tracking-[0.1em] transition-all ${
-                  isCurrent ? 'bg-[rgba(124,92,252,0.15)] border border-[rgba(124,92,252,0.3)] text-[#a78bfa]' :
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[8px] tracking-[0.1em] transition-all ${isCurrent ? 'bg-[rgba(124,92,252,0.15)] border border-[rgba(124,92,252,0.3)] text-[#a78bfa]' :
                   isActive ? 'bg-[rgba(0,255,136,0.08)] border border-[rgba(0,255,136,0.15)] text-[#00ff88]' :
-                  'bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)] text-[#3a3f45]'
-                }`} style={{ fontFamily: 'var(--font-mono)' }}>
+                    'bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)] text-[#3a3f45]'
+                  }`} style={{ fontFamily: 'var(--font-mono)' }}>
                   {isActive && !isCurrent ? <CheckCircle2 className="w-2.5 h-2.5" /> : null}
                   {label}
                 </div>
@@ -409,11 +469,10 @@ export default function RegisterPage() {
                         key={r}
                         type="button"
                         onClick={() => setRole(r)}
-                        className={`px-3 py-2.5 rounded-xl text-[10px] font-medium tracking-[0.05em] transition-all border ${
-                          role === r
-                            ? 'border-[rgba(124,92,252,0.3)] bg-[rgba(124,92,252,0.1)] text-[#a78bfa]'
-                            : 'border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] text-[#5a6068] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
-                        }`}
+                        className={`px-3 py-2.5 rounded-xl text-[10px] font-medium tracking-[0.05em] transition-all border ${role === r
+                          ? 'border-[rgba(124,92,252,0.3)] bg-[rgba(124,92,252,0.1)] text-[#a78bfa]'
+                          : 'border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] text-[#5a6068] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
+                          }`}
                         style={{ fontFamily: 'var(--font-mono)' }}
                       >
                         <div className="w-2 h-2 rounded-full mx-auto mb-1" style={{ background: ROLES[r].color }} />
@@ -433,11 +492,10 @@ export default function RegisterPage() {
                     type="button"
                     onClick={connectWallet}
                     disabled={walletConnected}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-medium transition-all border ${
-                      walletConnected
-                        ? 'bg-[rgba(0,255,136,0.06)] border-[rgba(0,255,136,0.15)] text-[#00ff88]'
-                        : 'bg-[rgba(124,92,252,0.06)] border-[rgba(124,92,252,0.15)] text-[#a78bfa] hover:bg-[rgba(124,92,252,0.12)]'
-                    }`}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-[10px] font-medium transition-all duration-300 relative overflow-hidden ${walletConnected
+                      ? 'border border-[#10b981]/40 bg-gradient-to-b from-[#10b981]/20 to-[#10b981]/5 backdrop-blur-xl text-[#10b981] shadow-[inset_0_1px_0_rgba(16,185,129,0.3),0_8px_32px_-8px_rgba(16,185,129,0.2)]'
+                      : 'border border-white/20 border-t-white/40 bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-xl text-white/90 hover:from-white/20 hover:to-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_12px_48px_-12px_rgba(255,255,255,0.2)] active:scale-[0.98] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_32px_-8px_rgba(0,0,0,0.5)]'
+                      }`}
                     style={{ fontFamily: 'var(--font-mono)' }}
                     id="reg-wallet-connect"
                   >
@@ -457,7 +515,7 @@ export default function RegisterPage() {
                       <button
                         type="button"
                         onClick={startCamera}
-                        className="w-full flex flex-col items-center justify-center gap-2 py-8 text-[#5a6068] hover:text-white transition-colors"
+                        className="w-full flex flex-col items-center justify-center gap-2 py-8 text-[#5a6068] hover:text-white transition-colors bg-gradient-to-b from-transparent to-white/5 hover:to-white/10 rounded-xl"
                         id="reg-start-camera"
                       >
                         <Camera className="w-8 h-8" />
@@ -511,13 +569,13 @@ export default function RegisterPage() {
                 {/* Actions */}
                 <div className="flex gap-3">
                   <button onClick={() => router.push('/dashboard/identity')}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[rgba(255,255,255,0.06)] text-[#5a6068] text-[10px] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-all"
+                    className="flex items-center gap-1.5 px-5 py-3 rounded-2xl border border-white/10 border-t-white/20 bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-xl text-white/70 text-[10px] hover:text-white hover:from-white/15 hover:to-white/10 hover:shadow-[0_8px_32px_-8px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.98]"
                     style={{ fontFamily: 'var(--font-mono)' }}>
                     <ArrowLeft className="w-3.5 h-3.5" /> BACK
                   </button>
                   <button onClick={handleRegister}
                     disabled={isProcessing || !fullName || !email || !department || !walletAddress || !photoBlob}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#7c5cfc] to-[#a855f7] text-white text-xs font-semibold tracking-[0.1em] hover:from-[#6d4fef] hover:to-[#9333ea] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-b from-white/20 to-white/5 backdrop-blur-xl border border-white/20 border-t-white/40 text-white text-xs font-semibold tracking-[0.1em] hover:from-white/25 hover:to-white/10 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_12px_48px_-12px_rgba(255,255,255,0.3)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_32px_-8px_rgba(0,0,0,0.5)] transition-all duration-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:from-white/20 disabled:hover:to-white/5"
                     style={{ fontFamily: 'var(--font-mono)' }}
                     id="reg-submit">
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Fingerprint className="w-4 h-4" /> REGISTER & MINT NFT</>}
@@ -556,9 +614,8 @@ export default function RegisterPage() {
                     { label: 'Database Registration', done: step === 'processing' && processingStep.includes('ETH') },
                     { label: 'Testnet ETH Transfer', done: step === 'processing' && processingStep.includes('complete') },
                   ].map((item) => (
-                    <div key={item.label} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] ${
-                      item.done ? 'bg-[rgba(0,255,136,0.05)] text-[#00ff88]' : 'bg-[rgba(255,255,255,0.02)] text-[#5a6068]'
-                    }`} style={{ fontFamily: 'var(--font-mono)' }}>
+                    <div key={item.label} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] ${item.done ? 'bg-[rgba(0,255,136,0.05)] text-[#00ff88]' : 'bg-[rgba(255,255,255,0.02)] text-[#5a6068]'
+                      }`} style={{ fontFamily: 'var(--font-mono)' }}>
                       {item.done ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-[#5a6068]" />}
                       {item.label}
                     </div>

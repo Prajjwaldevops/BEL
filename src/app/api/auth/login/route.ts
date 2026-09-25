@@ -21,6 +21,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
     }
 
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'HARDWARE KEY MANDATORY FOR ACCESS' }, { status: 403 });
+    }
+
     // RATE LIMITING CHECK
     const rateLimitCheck = await rateLimitMiddleware({
       username,
@@ -140,8 +144,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 4: Wallet verification (if wallet provided and user has registered wallet)
-    if (walletAddress && user.wallet_address) {
+    // Step 4: Wallet verification (mandatory)
+    if (user.wallet_address) {
       if (walletAddress.toLowerCase() !== user.wallet_address.toLowerCase()) {
         await recordLoginAttempt({
           username,
@@ -156,6 +160,11 @@ export async function POST(request: NextRequest) {
           error: 'WALLET IDENTITY MISMATCH — CONNECTED WALLET DOES NOT MATCH REGISTERED IDENTITY',
         }, { status: 403 });
       }
+    } else {
+      // If the user has no wallet registered yet, but we are enforcing strict security, we can either:
+      // 1. Allow this login and let them bind it.
+      // 2. Reject it if the system strictly requires pre-registered wallets.
+      // For now, we allow the login but record that they used a wallet.
     }
 
     // Step 5: Record successful login

@@ -21,24 +21,26 @@ export default function GlowButton({ children, variant = 'primary', size = 'md',
 
   const variants = {
     primary: `
-      bg-gradient-to-r from-[#7c5cfc] to-[#a78bfa]
-      text-white font-bold
-      shadow-[0_0_30px_rgba(124,92,252,0.3)]
+      bg-gradient-to-b from-white/20 to-white/5 backdrop-blur-2xl
+      border border-white/20 border-t-white/40
+      text-white font-semibold tracking-wide
+      shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_32px_-8px_rgba(255,255,255,0.15)]
     `,
     secondary: `
-      bg-[rgba(124,92,252,0.08)]
-      text-[#e8e4f0] font-medium
-      border border-[rgba(124,92,252,0.2)]
+      bg-white/5 backdrop-blur-xl
+      border border-white/10
+      text-white/80 font-medium tracking-wide
+      shadow-[0_8px_32px_-8px_rgba(255,255,255,0.02)]
     `,
     outline: `
-      bg-transparent
-      text-[#a78bfa] font-medium
-      border border-[rgba(167,139,250,0.3)]
+      bg-transparent backdrop-blur-md
+      border border-white/15
+      text-white/70 font-medium tracking-wide
     `,
     dark: `
-      bg-[rgba(15,10,30,0.8)]
-      text-white font-medium
-      border border-[rgba(124,92,252,0.2)]
+      bg-black/40 backdrop-blur-xl
+      border border-white/5
+      text-white/60 font-medium tracking-wide
     `,
   };
 
@@ -51,22 +53,30 @@ export default function GlowButton({ children, variant = 'primary', size = 'md',
       whileHover={{
         scale: 1.03,
         boxShadow: variant === 'primary'
-          ? '0 0 50px rgba(124, 92, 252, 0.5), 0 0 100px rgba(124, 92, 252, 0.2)'
-          : '0 0 30px rgba(124, 92, 252, 0.2)',
+          ? 'inset 0 1px 0 rgba(255,255,255,0.5), 0 12px 48px -12px rgba(255,255,255,0.25)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 32px -8px rgba(255,255,255,0.1)',
+        backgroundColor: variant === 'primary'
+          ? 'rgba(255,255,255,0.15)'
+          : variant === 'secondary' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)'
       }}
       whileTap={{ scale: 0.98 }}
       className={`
         relative inline-flex items-center justify-center gap-2
         rounded-full tracking-wide
-        transition-all duration-300 cursor-pointer
+        transition-all duration-300 cursor-pointer overflow-hidden group
         ${sizes[size]}
         ${variants[variant]}
         ${className}
       `}
     >
-      {variant === 'primary' && (
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#7c5cfc] to-[#a78bfa] opacity-0 hover:opacity-20 transition-opacity blur-xl" />
-      )}
+      <div 
+        className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{
+          background: variant === 'primary' 
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%)' 
+            : 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%)',
+        }}
+      />
       <span className="relative z-10 flex items-center gap-2">{children}</span>
     </Component>
   );

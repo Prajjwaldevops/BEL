@@ -1,0 +1,8 @@
+graph TD
+    User([User / Wallet]) -->|Signs TX| FrontEnd[Next.js Frontend]
+    FrontEnd -->|Auth & Metadata| Supabase[(Supabase DB)]
+    FrontEnd -->|Sends Signed TX| SmartContracts{Smart Contracts}
+    Supabase -->|RLS Policies| RBAC[Role-Based Access]
+    SmartContracts -->|Mint Identity/Asset| EVM[EVM Blockchain]
+    SmartContracts -->|Batch Audit Logs| Merkle[Merkle Root Anchoring]
+    EVM --> IPFS[IPFS / R2 Storage]

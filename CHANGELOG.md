@@ -496,6 +496,47 @@ GROUP BY field_name, access_reason;
 
 ---
 
+### Added - Part D: Repository Housekeeping
+
+#### D2: Dashboard Real Data Integration (2026-09-17)
+
+**What Changed:**
+- Replaced hardcoded zeros in dashboard with live Supabase queries
+- Dashboard now displays real-time statistics from database
+- Added loading state for async data fetching
+
+**Why:**
+- Production dashboard showed all zeros, not reflecting actual system state
+- Compliance and monitoring require accurate live data
+- Stakeholders need real visibility into platform usage
+
+**Technical Implementation:**
+- Converted `getDashboardStats()` from sync function returning zeros to async function with Supabase queries
+- Queries:
+  - Total identities: Count profiles with `nft_token_id`
+  - Active users: Profiles with `last_active_at` within 30 days
+  - Registered assets: Count from `assets` table
+  - Assets transferred: Count `TRANSFERRED` type from `asset_ownership_history`
+  - Blockchain txns: Count from `blockchain_transactions`
+  - IPFS documents: Count documents with `ipfs_hash`
+  - Security events: Count from `security_events`
+  - Failed access: Count failed login attempts from `login_trails`
+  - Gas fees: Sum of `gas_fee_eth` from blockchain transactions
+- Dashboard component updated to fetch data on mount with loading state
+- Graceful fallback to zeros on error
+
+**Files Modified:**
+- `src/lib/data-service.ts` - Implemented real Supabase queries
+- `src/app/dashboard/page.tsx` - Added async data fetching with useState/useEffect
+
+**Benefits:**
+- ✅ Real-time visibility into platform usage
+- ✅ Accurate metrics for monitoring and compliance
+- ✅ Demonstrates working system vs. demo with fake data
+- ✅ Foundation for alerting based on actual thresholds
+
+---
+
 #### A5: Harden Smart Contracts with OpenZeppelin (2026-09-17)
 
 **What Changed:**
