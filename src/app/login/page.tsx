@@ -64,7 +64,19 @@ export default function LoginPage() {
   const [phase, setPhase] = useState<AuthPhase>('idle');
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
   const [currentTime, setCurrentTime] = useState('');
+  const [redirectTo, setRedirectTo] = useState('/dashboard');
   const terminalRef = useRef<HTMLDivElement>(null);
+
+  // Get redirect parameter from URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      if (redirect) {
+        setRedirectTo(redirect);
+      }
+    }
+  }, []);
 
   // Clock
   useEffect(() => {
@@ -198,7 +210,7 @@ export default function LoginPage() {
       }));
 
       await sleep(800);
-      window.location.href = '/dashboard';
+      window.location.href = redirectTo;
     } catch {
       addTerminalLine('NETWORK FAILURE — CONNECTION LOST', 'error');
       setError('NETWORK ERROR — RETRY AUTHENTICATION');
