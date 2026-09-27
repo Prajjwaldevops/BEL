@@ -80,12 +80,35 @@ export async function POST(request: NextRequest) {
         failureReason: 'USER_NOT_FOUND',
       });
       
-      return NextResponse.json({ error: 'INVALID CREDENTIALS — OPERATOR NOT FOUND' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'AUTHENTICATION FAILED — CHECK CREDENTIALS',
+        details: 'Operator ID not found in system'
+      }, { status: 401 });
     }
 
     const user = users[0];
 
-    // Step 2: Verify password via Supabase RPC (pgcrypto crypt function)
+    // Step 2: Verify wallet FIRST (before password check)
+    // This ensures all 3 credentials (operator ID, password, wallet) must match
+    if (user.wallet_address) {
+      if (walletAddress.toLowerCase() !== user.wallet_address.toLowerCase()) {
+        await recordLoginAttempt({
+          username,
+          email: user.email,
+          ipAddress,
+          userAgent,
+          success: false,
+          failureReason: 'WALLET_MISMATCH',
+        });
+
+        return NextResponse.json({
+          error: 'AUTHENTICATION FAILED — CHECK CREDENTIALS',
+          details: 'Wallet address does not match registered identity'
+        }, { status: 401 });
+      }
+    }
+
+    // Step 3: Verify password via Supabase RPC (pgcrypto crypt function)
     const verifyRes = await fetch(`${supabaseUrl}/rest/v1/rpc/verify_password`, {
       method: 'POST',
       headers: {
@@ -108,10 +131,13 @@ export async function POST(request: NextRequest) {
         failureReason: 'INVALID_PASSWORD',
       });
       
-      return NextResponse.json({ error: 'INVALID CREDENTIALS — LAUNCH CODE REJECTED' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'AUTHENTICATION FAILED — CHECK CREDENTIALS',
+        details: 'Invalid password for operator'
+      }, { status: 401 });
     }
 
-    // Step 3: Determine role
+    // Step 4: Determine role
     // Check is_admin flag first
     let userRole = 'VIEWER'; // default
 
@@ -142,29 +168,6 @@ export async function POST(request: NextRequest) {
         console.error('Role lookup error:', roleErr);
         // Fall through with default role
       }
-    }
-
-    // Step 4: Wallet verification (mandatory)
-    if (user.wallet_address) {
-      if (walletAddress.toLowerCase() !== user.wallet_address.toLowerCase()) {
-        await recordLoginAttempt({
-          username,
-          email: user.email,
-          ipAddress,
-          userAgent,
-          success: false,
-          failureReason: 'WALLET_MISMATCH',
-        });
-
-        return NextResponse.json({
-          error: 'WALLET IDENTITY MISMATCH — CONNECTED WALLET DOES NOT MATCH REGISTERED IDENTITY',
-        }, { status: 403 });
-      }
-    } else {
-      // If the user has no wallet registered yet, but we are enforcing strict security, we can either:
-      // 1. Allow this login and let them bind it.
-      // 2. Reject it if the system strictly requires pre-registered wallets.
-      // For now, we allow the login but record that they used a wallet.
     }
 
     // Step 5: Record successful login

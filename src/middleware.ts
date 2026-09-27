@@ -14,15 +14,10 @@ import { createClient } from '@/lib/supabase/middleware';
 const PUBLIC_ROUTES = [
   '/',              // Landing page
   '/login',         // Login page
-  '/verify',        // Public verification portal
   '/unauthorized',  // Access denied page
   '/api/auth/nonce',       // Wallet nonce generation
   '/api/auth/login',       // Login endpoint
   '/api/auth/verify',      // Auth verification
-  '/api/verify/asset',     // Public asset verification
-  '/api/verify/document',  // Public document verification
-  '/api/verify/transaction', // Public transaction verification
-  '/api/verify/credential',  // Public credential verification
   '/api/health',           // Health check endpoint
 ];
 
