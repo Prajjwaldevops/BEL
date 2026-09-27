@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre from "hardhat";
 import { IdentityNFT } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -11,13 +11,13 @@ describe("IdentityNFT", function () {
   let user2: SignerWithAddress;
   let unauthorized: SignerWithAddress;
 
-  const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
-  const PAUSER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("PAUSER_ROLE"));
+  const MINTER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MINTER_ROLE"));
+  const PAUSER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("PAUSER_ROLE"));
 
   beforeEach(async function () {
-    [admin, minter, user1, user2, unauthorized] = await ethers.getSigners();
+    [admin, minter, user1, user2, unauthorized] = await hre.ethers.getSigners();
 
-    const IdentityNFTFactory = await ethers.getContractFactory("IdentityNFT");
+    const IdentityNFTFactory = await hre.ethers.getContractFactory("IdentityNFT");
     identityNFT = await IdentityNFTFactory.deploy();
     await identityNFT.waitForDeployment();
 

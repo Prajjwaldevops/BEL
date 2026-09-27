@@ -1,11 +1,12 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
-import { AssetNFT, RoleManager } from "../typechain-types";
+import hre from "hardhat";
+import { AssetNFT, RoleManager, IdentityRegistry } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("AssetNFT", function () {
   let assetNFT: AssetNFT;
   let roleManager: RoleManager;
+  let identityRegistry: IdentityRegistry;
   let admin: SignerWithAddress;
   let minter: SignerWithAddress;
   let manager: SignerWithAddress;
@@ -13,20 +14,25 @@ describe("AssetNFT", function () {
   let user2: SignerWithAddress;
   let unauthorized: SignerWithAddress;
 
-  const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
-  const MANAGER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MANAGER_ROLE"));
-  const PAUSER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("PAUSER_ROLE"));
+  const MINTER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MINTER_ROLE"));
+  const MANAGER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MANAGER_ROLE"));
+  const PAUSER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("PAUSER_ROLE"));
 
   beforeEach(async function () {
-    [admin, minter, manager, user1, user2, unauthorized] = await ethers.getSigners();
+    [admin, minter, manager, user1, user2, unauthorized] = await hre.ethers.getSigners();
 
-    // Deploy RoleManager
-    const RoleManagerFactory = await ethers.getContractFactory("RoleManager");
-    roleManager = await RoleManagerFactory.deploy();
+    // Deploy IdentityRegistry first
+    const IdentityRegistryFactory = await hre.ethers.getContractFactory("IdentityRegistry");
+    identityRegistry = await IdentityRegistryFactory.deploy();
+    await identityRegistry.waitForDeployment();
+
+    // Deploy RoleManager with IdentityRegistry address
+    const RoleManagerFactory = await hre.ethers.getContractFactory("RoleManager");
+    roleManager = await RoleManagerFactory.deploy(await identityRegistry.getAddress());
     await roleManager.waitForDeployment();
 
     // Deploy AssetNFT
-    const AssetNFTFactory = await ethers.getContractFactory("AssetNFT");
+    const AssetNFTFactory = await hre.ethers.getContractFactory("AssetNFT");
     assetNFT = await AssetNFTFactory.deploy(await roleManager.getAddress());
     await assetNFT.waitForDeployment();
 
@@ -153,6 +159,8 @@ describe("AssetNFT", function () {
         "RADAR-001",
         "ipfs://QmAsset1"
       );
+      // Owner approves manager to transfer
+      await assetNFT.connect(user1).approve(manager.address, 1000);
     });
 
     it("Should allow manager to transfer asset", async function () {
@@ -180,7 +188,7 @@ describe("AssetNFT", function () {
 
     it("Should reject transfer to zero address", async function () {
       await expect(
-        assetNFT.connect(manager).transferFrom(user1.address, ethers.ZeroAddress, 1000)
+        assetNFT.connect(manager).transferFrom(user1.address, hre.ethers.ZeroAddress, 1000)
       ).to.be.revertedWith("Transfer to zero address");
     });
 
@@ -298,6 +306,9 @@ describe("AssetNFT", function () {
         "RADAR-001",
         "ipfs://QmAsset1"
       );
+      
+      // Owner approves manager for transfer
+      await assetNFT.connect(user1).approve(manager.address, 1000);
       
       const tx = await assetNFT.connect(manager).transferFrom(user1.address, user2.address, 1000);
       await tx.wait();
