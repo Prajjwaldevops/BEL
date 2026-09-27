@@ -89,8 +89,12 @@ export async function POST(request: NextRequest) {
     const user = users[0];
 
     // Step 2: Verify wallet FIRST (before password check)
-    // This ensures all 3 credentials (operator ID, password, wallet) must match
-    if (user.wallet_address) {
+    // Bypass wallet check for test users: admin and sih
+    const TEST_USERS_BYPASS = ['admin', 'sih'];
+    const bypassWalletCheck = TEST_USERS_BYPASS.includes(username.toLowerCase());
+    
+    if (user.wallet_address && !bypassWalletCheck) {
+      // Normal wallet verification for production users
       if (walletAddress.toLowerCase() !== user.wallet_address.toLowerCase()) {
         await recordLoginAttempt({
           username,
@@ -106,6 +110,8 @@ export async function POST(request: NextRequest) {
           details: 'Wallet address does not match registered identity'
         }, { status: 401 });
       }
+    } else if (bypassWalletCheck) {
+      console.log(`⚠️ WALLET BYPASS: Test user '${username}' - wallet verification skipped`);
     }
 
     // Step 3: Verify password via Supabase RPC (pgcrypto crypt function)
