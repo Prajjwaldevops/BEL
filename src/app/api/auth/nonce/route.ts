@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
-import { rateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getClientIP, getUserAgent, recordLoginAttempt } from '@/lib/rate-limit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,13 +9,18 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  // Rate limiting: 20 requests per 15 minutes per IP
-  const identifier = request.ip || 'anonymous';
-  const { success } = await rateLimit(identifier, 20, 15 * 60 * 1000);
+  // Rate limiting check
+  const ipAddress = await getClientIP();
+  const rateLimitCheck = await checkRateLimit({ ipAddress });
   
-  if (!success) {
+  if (!rateLimitCheck.allowed) {
     return NextResponse.json(
-      { error: 'Too many requests', retryAfter: 900 },
+      { 
+        error: 'Too many requests',
+        reason: rateLimitCheck.reason,
+        lockoutUntil: rateLimitCheck.lockoutUntil,
+        retryAfter: 900 
+      },
       { status: 429 }
     );
   }

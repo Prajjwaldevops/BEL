@@ -26,10 +26,9 @@ export interface RoleManagerInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "ROLE_ADMIN"
-      | "ROLE_AUDITOR"
-      | "ROLE_MANAGER"
-      | "ROLE_OPERATOR"
-      | "ROLE_USER"
+      | "ROLE_ALTER"
+      | "ROLE_DEBUGGER"
+      | "ROLE_VIEWER"
       | "assignRole"
       | "hasRole"
       | "identityRegistry"
@@ -51,18 +50,17 @@ export interface RoleManagerInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "ROLE_AUDITOR",
+    functionFragment: "ROLE_ALTER",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "ROLE_MANAGER",
+    functionFragment: "ROLE_DEBUGGER",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "ROLE_OPERATOR",
+    functionFragment: "ROLE_VIEWER",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "ROLE_USER", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "assignRole",
     values: [AddressLike, string]
@@ -90,19 +88,15 @@ export interface RoleManagerInterface extends Interface {
   ): string;
 
   decodeFunctionResult(functionFragment: "ROLE_ADMIN", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "ROLE_ALTER", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "ROLE_AUDITOR",
+    functionFragment: "ROLE_DEBUGGER",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "ROLE_MANAGER",
+    functionFragment: "ROLE_VIEWER",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(
-    functionFragment: "ROLE_OPERATOR",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "ROLE_USER", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "assignRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
   decodeFunctionResult(
@@ -205,13 +199,11 @@ export interface RoleManager extends BaseContract {
 
   ROLE_ADMIN: TypedContractMethod<[], [string], "view">;
 
-  ROLE_AUDITOR: TypedContractMethod<[], [string], "view">;
+  ROLE_ALTER: TypedContractMethod<[], [string], "view">;
 
-  ROLE_MANAGER: TypedContractMethod<[], [string], "view">;
+  ROLE_DEBUGGER: TypedContractMethod<[], [string], "view">;
 
-  ROLE_OPERATOR: TypedContractMethod<[], [string], "view">;
-
-  ROLE_USER: TypedContractMethod<[], [string], "view">;
+  ROLE_VIEWER: TypedContractMethod<[], [string], "view">;
 
   assignRole: TypedContractMethod<
     [_user: AddressLike, _role: string],
@@ -251,16 +243,13 @@ export interface RoleManager extends BaseContract {
     nameOrSignature: "ROLE_ADMIN"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "ROLE_AUDITOR"
+    nameOrSignature: "ROLE_ALTER"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "ROLE_MANAGER"
+    nameOrSignature: "ROLE_DEBUGGER"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "ROLE_OPERATOR"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "ROLE_USER"
+    nameOrSignature: "ROLE_VIEWER"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "assignRole"

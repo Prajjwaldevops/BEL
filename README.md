@@ -70,6 +70,45 @@ A blockchain-anchored identity, asset management, and zero-trust access control 
 
 ---
 
+## ✨ Advanced Features
+
+### 🔐 Post-Quantum Cryptography
+- **CRYSTALS-Kyber** (KEM) for encryption
+- **CRYSTALS-Dilithium** (DSA) for digital signatures
+- Hybrid classical + PQ signatures for migration period
+- Key rotation and secure storage in Supabase
+
+### 🆔 W3C Decentralized Identifiers (DIDs)
+- **4 DID Methods Supported:**
+  - `did:key` - Cryptographic key-based identifiers
+  - `did:ethr` - Ethereum blockchain anchored
+  - `did:web` - Web-based DIDs
+  - `did:pq` - Post-quantum secure DIDs
+- Universal DID resolver integration
+- DID document management and relationships
+
+### 📜 W3C Verifiable Credentials (VCs)
+- Issue, verify, and revoke credentials
+- Selective disclosure support
+- Verifiable presentations (VPs)
+- Credential schemas and revocation registry
+- Expiration and lifecycle management
+
+### 🔍 Zero-Knowledge Proofs
+- **Clearance Level Proofs** - Prove security clearance without revealing exact level
+- **Membership Proofs** - Prove group membership anonymously
+- **Attribute Proofs** - Selective attribute disclosure
+- **Ownership Proofs** - Prove asset ownership without revealing identity
+- Commitment-based ZK system (production-ready for zk-SNARKs/STARKs integration)
+
+### 🤖 AWS Bedrock AI Security
+- Real-time threat analysis using Claude 3
+- Anomaly detection in user behavior
+- Automated security report generation
+- Contextual risk scoring
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -77,6 +116,7 @@ A blockchain-anchored identity, asset management, and zero-trust access control 
 - Node.js 20+
 - PostgreSQL (via Supabase)
 - MetaMask or compatible Web3 wallet
+- AWS Account (for Bedrock AI security features)
 
 ### 1. Start Local Blockchain
 
@@ -93,7 +133,16 @@ npx hardhat run scripts/deploy.ts --network localhost
 # Note the deployed contract addresses
 ```
 
-### 3. Configure Environment
+### 3. Setup Database
+
+Run migrations in Supabase SQL Editor:
+
+```bash
+npm run migrate:db
+# Copy the SQL output and run in Supabase Dashboard > SQL Editor
+```
+
+### 4. Configure Environment
 
 ```bash
 cp .env.example .env.local

@@ -1,18 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyCredential } from '@/lib/vc-service';
-import { createClient } from '@/lib/supabase/server';
+import { verifyCredential } from '@/lib/verifiable-credentials';
+import { resolveDID } from '@/lib/did-resolver';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { credential } = await request.json();
+
+    if (!credential) {
+      return NextResponse.json(
+        { error: 'Credential is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the credential signature
+    const isValid = await verifyCredential(credential);
+
+    if (!isValid) {
+      return NextResponse.json(
+        { 
+          verified: false,
+          error: 'Invalid credential signature'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Resolve issuer DID
+    const issuerDoc = await resolveDID(credential.issuer);
     
-    const { credentialId } = await request.json();
-    const verification = await verifyCredential(credentialId, user.id);
-    
-    return NextResponse.json({ success: true, verification });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Check expiration
+    const isExpired = credential.expirationDate && 
+                      new Date(credential.expirationDate) < new Date();
+
+    // Check revocation status (TODO: implement revocation registry)
+    const isRevoked = false; // Placeholder
+
+    return NextResponse.json({
+      verified: true,
+      valid: !isExpired && !isRevoked,
+      checks: {
+        signatureValid: isValid,
+        expired: isExpired,
+        revoked: isRevoked,
+        issuerResolved: !!issuerDoc
+      },
+      credential: {
+        id: credential.id,
+        type: credential.type,
+        issuer: credential.issuer,
+        subject: credential.credentialSubject.id,
+        issuanceDate: credential.issuanceDate,
+        expirationDate: credential.expirationDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Credential verification error:', error);
+    return NextResponse.json(
+      { 
+        verified: false,
+        error: error instanceof Error ? error.message : 'Verification failed'
+      },
+      { status: 500 }
+    );
   }
 }

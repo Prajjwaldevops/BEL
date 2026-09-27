@@ -23,52 +23,81 @@ import type {
   TypedContractMethod,
 } from "../common";
 
-export interface AssetNFTInterface extends Interface {
+export declare namespace IdentityNFT {
+  export type UserIdentityStruct = {
+    photoHash: string;
+    photoUrl: string;
+    role: string;
+    department: string;
+    criminalStatus: string;
+    registeredAt: BigNumberish;
+    metadataHash: BytesLike;
+  };
+
+  export type UserIdentityStructOutput = [
+    photoHash: string,
+    photoUrl: string,
+    role: string,
+    department: string,
+    criminalStatus: string,
+    registeredAt: bigint,
+    metadataHash: string
+  ] & {
+    photoHash: string;
+    photoUrl: string;
+    role: string;
+    department: string;
+    criminalStatus: string;
+    registeredAt: bigint;
+    metadataHash: string;
+  };
+}
+
+export interface IdentityNFTInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "DEFAULT_ADMIN_ROLE"
-      | "MANAGER_ROLE"
       | "MINTER_ROLE"
       | "PAUSER_ROLE"
       | "approve"
-      | "assetPhysicalIds"
-      | "assetStatuses"
       | "balanceOf"
       | "getApproved"
-      | "getAssetDetails"
+      | "getIdentity"
+      | "getIdentityByWallet"
       | "getRoleAdmin"
       | "grantRole"
+      | "hasMintedIdentity"
       | "hasRole"
       | "isApprovedForAll"
-      | "mintAsset"
+      | "mintIdentity"
       | "name"
       | "ownerOf"
       | "pause"
       | "paused"
       | "renounceRole"
       | "revokeRole"
-      | "roleManager"
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
       | "setApprovalForAll"
       | "supportsInterface"
       | "symbol"
       | "tokenURI"
+      | "totalMinted"
       | "transferFrom"
       | "unpause"
-      | "updateAssetStatus"
+      | "userIdentities"
+      | "verifyMetadataHash"
+      | "walletToTokenId"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
       | "Approval"
       | "ApprovalForAll"
-      | "AssetMinted"
-      | "AssetStatusChanged"
-      | "AssetTransferApproved"
       | "BatchMetadataUpdate"
       | "ContractPaused"
       | "ContractUnpaused"
+      | "IdentityMinted"
       | "MetadataUpdate"
       | "Paused"
       | "RoleAdminChanged"
@@ -80,10 +109,6 @@ export interface AssetNFTInterface extends Interface {
 
   encodeFunctionData(
     functionFragment: "DEFAULT_ADMIN_ROLE",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: "MANAGER_ROLE",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -99,14 +124,6 @@ export interface AssetNFTInterface extends Interface {
     values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "assetPhysicalIds",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "assetStatuses",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
     functionFragment: "balanceOf",
     values: [AddressLike]
   ): string;
@@ -115,8 +132,12 @@ export interface AssetNFTInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "getAssetDetails",
+    functionFragment: "getIdentity",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getIdentityByWallet",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -127,6 +148,10 @@ export interface AssetNFTInterface extends Interface {
     values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "hasMintedIdentity",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "hasRole",
     values: [BytesLike, AddressLike]
   ): string;
@@ -135,8 +160,8 @@ export interface AssetNFTInterface extends Interface {
     values: [AddressLike, AddressLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "mintAsset",
-    values: [AddressLike, string, string]
+    functionFragment: "mintIdentity",
+    values: [AddressLike, string, string, string, string, string, string]
   ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(
@@ -152,10 +177,6 @@ export interface AssetNFTInterface extends Interface {
   encodeFunctionData(
     functionFragment: "revokeRole",
     values: [BytesLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "roleManager",
-    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "safeTransferFrom(address,address,uint256)",
@@ -179,21 +200,29 @@ export interface AssetNFTInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "totalMinted",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "transferFrom",
     values: [AddressLike, AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "updateAssetStatus",
-    values: [BigNumberish, BigNumberish]
+    functionFragment: "userIdentities",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "verifyMetadataHash",
+    values: [BigNumberish, string, string, string, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "walletToTokenId",
+    values: [AddressLike]
   ): string;
 
   decodeFunctionResult(
     functionFragment: "DEFAULT_ADMIN_ROLE",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "MANAGER_ROLE",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -205,21 +234,17 @@ export interface AssetNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "assetPhysicalIds",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "assetStatuses",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getApproved",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getAssetDetails",
+    functionFragment: "getIdentity",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getIdentityByWallet",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -227,12 +252,19 @@ export interface AssetNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "hasMintedIdentity",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isApprovedForAll",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "mintAsset", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "mintIdentity",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "ownerOf", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
@@ -242,10 +274,6 @@ export interface AssetNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "roleManager",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "safeTransferFrom(address,address,uint256)",
     data: BytesLike
@@ -265,12 +293,24 @@ export interface AssetNFTInterface extends Interface {
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "tokenURI", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "totalMinted",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "transferFrom",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "updateAssetStatus",
+    functionFragment: "userIdentities",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "verifyMetadataHash",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "walletToTokenId",
     data: BytesLike
   ): Result;
 }
@@ -315,62 +355,6 @@ export namespace ApprovalForAllEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace AssetMintedEvent {
-  export type InputTuple = [
-    tokenId: BigNumberish,
-    physicalId: string,
-    to: AddressLike
-  ];
-  export type OutputTuple = [tokenId: bigint, physicalId: string, to: string];
-  export interface OutputObject {
-    tokenId: bigint;
-    physicalId: string;
-    to: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace AssetStatusChangedEvent {
-  export type InputTuple = [tokenId: BigNumberish, status: BigNumberish];
-  export type OutputTuple = [tokenId: bigint, status: bigint];
-  export interface OutputObject {
-    tokenId: bigint;
-    status: bigint;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace AssetTransferApprovedEvent {
-  export type InputTuple = [
-    tokenId: BigNumberish,
-    from: AddressLike,
-    to: AddressLike,
-    approver: AddressLike
-  ];
-  export type OutputTuple = [
-    tokenId: bigint,
-    from: string,
-    to: string,
-    approver: string
-  ];
-  export interface OutputObject {
-    tokenId: bigint;
-    from: string;
-    to: string;
-    approver: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
 export namespace BatchMetadataUpdateEvent {
   export type InputTuple = [
     _fromTokenId: BigNumberish,
@@ -404,6 +388,34 @@ export namespace ContractUnpausedEvent {
   export type OutputTuple = [by: string];
   export interface OutputObject {
     by: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace IdentityMintedEvent {
+  export type InputTuple = [
+    tokenId: BigNumberish,
+    wallet: AddressLike,
+    role: string,
+    department: string,
+    photoHash: string
+  ];
+  export type OutputTuple = [
+    tokenId: bigint,
+    wallet: string,
+    role: string,
+    department: string,
+    photoHash: string
+  ];
+  export interface OutputObject {
+    tokenId: bigint;
+    wallet: string;
+    role: string;
+    department: string;
+    photoHash: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -523,11 +535,11 @@ export namespace UnpausedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface AssetNFT extends BaseContract {
-  connect(runner?: ContractRunner | null): AssetNFT;
+export interface IdentityNFT extends BaseContract {
+  connect(runner?: ContractRunner | null): IdentityNFT;
   waitForDeployment(): Promise<this>;
 
-  interface: AssetNFTInterface;
+  interface: IdentityNFTInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -568,8 +580,6 @@ export interface AssetNFT extends BaseContract {
 
   DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
 
-  MANAGER_ROLE: TypedContractMethod<[], [string], "view">;
-
   MINTER_ROLE: TypedContractMethod<[], [string], "view">;
 
   PAUSER_ROLE: TypedContractMethod<[], [string], "view">;
@@ -580,24 +590,19 @@ export interface AssetNFT extends BaseContract {
     "nonpayable"
   >;
 
-  assetPhysicalIds: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
-
-  assetStatuses: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
-
   balanceOf: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
 
-  getAssetDetails: TypedContractMethod<
-    [tokenId: BigNumberish],
-    [
-      [string, bigint, string, string] & {
-        physicalId: string;
-        status: bigint;
-        owner: string;
-        uri: string;
-      }
-    ],
+  getIdentity: TypedContractMethod<
+    [_tokenId: BigNumberish],
+    [IdentityNFT.UserIdentityStructOutput],
+    "view"
+  >;
+
+  getIdentityByWallet: TypedContractMethod<
+    [_wallet: AddressLike],
+    [IdentityNFT.UserIdentityStructOutput],
     "view"
   >;
 
@@ -607,6 +612,12 @@ export interface AssetNFT extends BaseContract {
     [role: BytesLike, account: AddressLike],
     [void],
     "nonpayable"
+  >;
+
+  hasMintedIdentity: TypedContractMethod<
+    [arg0: AddressLike],
+    [boolean],
+    "view"
   >;
 
   hasRole: TypedContractMethod<
@@ -621,8 +632,16 @@ export interface AssetNFT extends BaseContract {
     "view"
   >;
 
-  mintAsset: TypedContractMethod<
-    [to: AddressLike, physicalId: string, tokenURI: string],
+  mintIdentity: TypedContractMethod<
+    [
+      _wallet: AddressLike,
+      _tokenURI: string,
+      _photoHash: string,
+      _photoUrl: string,
+      _role: string,
+      _department: string,
+      _criminalStatus: string
+    ],
     [bigint],
     "nonpayable"
   >;
@@ -646,8 +665,6 @@ export interface AssetNFT extends BaseContract {
     [void],
     "nonpayable"
   >;
-
-  roleManager: TypedContractMethod<[], [string], "view">;
 
   "safeTransferFrom(address,address,uint256)": TypedContractMethod<
     [from: AddressLike, to: AddressLike, tokenId: BigNumberish],
@@ -682,6 +699,8 @@ export interface AssetNFT extends BaseContract {
 
   tokenURI: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
 
+  totalMinted: TypedContractMethod<[], [bigint], "view">;
+
   transferFrom: TypedContractMethod<
     [from: AddressLike, to: AddressLike, tokenId: BigNumberish],
     [void],
@@ -690,11 +709,35 @@ export interface AssetNFT extends BaseContract {
 
   unpause: TypedContractMethod<[], [void], "nonpayable">;
 
-  updateAssetStatus: TypedContractMethod<
-    [tokenId: BigNumberish, status: BigNumberish],
-    [void],
-    "nonpayable"
+  userIdentities: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [string, string, string, string, string, bigint, string] & {
+        photoHash: string;
+        photoUrl: string;
+        role: string;
+        department: string;
+        criminalStatus: string;
+        registeredAt: bigint;
+        metadataHash: string;
+      }
+    ],
+    "view"
   >;
+
+  verifyMetadataHash: TypedContractMethod<
+    [
+      _tokenId: BigNumberish,
+      _photoHash: string,
+      _role: string,
+      _department: string,
+      _criminalStatus: string
+    ],
+    [boolean],
+    "view"
+  >;
+
+  walletToTokenId: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -702,9 +745,6 @@ export interface AssetNFT extends BaseContract {
 
   getFunction(
     nameOrSignature: "DEFAULT_ADMIN_ROLE"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "MANAGER_ROLE"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "MINTER_ROLE"
@@ -720,29 +760,23 @@ export interface AssetNFT extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "assetPhysicalIds"
-  ): TypedContractMethod<[arg0: BigNumberish], [string], "view">;
-  getFunction(
-    nameOrSignature: "assetStatuses"
-  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
-  getFunction(
     nameOrSignature: "balanceOf"
   ): TypedContractMethod<[owner: AddressLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "getApproved"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
   getFunction(
-    nameOrSignature: "getAssetDetails"
+    nameOrSignature: "getIdentity"
   ): TypedContractMethod<
-    [tokenId: BigNumberish],
-    [
-      [string, bigint, string, string] & {
-        physicalId: string;
-        status: bigint;
-        owner: string;
-        uri: string;
-      }
-    ],
+    [_tokenId: BigNumberish],
+    [IdentityNFT.UserIdentityStructOutput],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getIdentityByWallet"
+  ): TypedContractMethod<
+    [_wallet: AddressLike],
+    [IdentityNFT.UserIdentityStructOutput],
     "view"
   >;
   getFunction(
@@ -755,6 +789,9 @@ export interface AssetNFT extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "hasMintedIdentity"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "hasRole"
   ): TypedContractMethod<
@@ -770,9 +807,17 @@ export interface AssetNFT extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "mintAsset"
+    nameOrSignature: "mintIdentity"
   ): TypedContractMethod<
-    [to: AddressLike, physicalId: string, tokenURI: string],
+    [
+      _wallet: AddressLike,
+      _tokenURI: string,
+      _photoHash: string,
+      _photoUrl: string,
+      _role: string,
+      _department: string,
+      _criminalStatus: string
+    ],
     [bigint],
     "nonpayable"
   >;
@@ -802,9 +847,6 @@ export interface AssetNFT extends BaseContract {
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "roleManager"
-  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "safeTransferFrom(address,address,uint256)"
   ): TypedContractMethod<
@@ -841,6 +883,9 @@ export interface AssetNFT extends BaseContract {
     nameOrSignature: "tokenURI"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
   getFunction(
+    nameOrSignature: "totalMinted"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "transferFrom"
   ): TypedContractMethod<
     [from: AddressLike, to: AddressLike, tokenId: BigNumberish],
@@ -851,12 +896,38 @@ export interface AssetNFT extends BaseContract {
     nameOrSignature: "unpause"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "updateAssetStatus"
+    nameOrSignature: "userIdentities"
   ): TypedContractMethod<
-    [tokenId: BigNumberish, status: BigNumberish],
-    [void],
-    "nonpayable"
+    [arg0: BigNumberish],
+    [
+      [string, string, string, string, string, bigint, string] & {
+        photoHash: string;
+        photoUrl: string;
+        role: string;
+        department: string;
+        criminalStatus: string;
+        registeredAt: bigint;
+        metadataHash: string;
+      }
+    ],
+    "view"
   >;
+  getFunction(
+    nameOrSignature: "verifyMetadataHash"
+  ): TypedContractMethod<
+    [
+      _tokenId: BigNumberish,
+      _photoHash: string,
+      _role: string,
+      _department: string,
+      _criminalStatus: string
+    ],
+    [boolean],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "walletToTokenId"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   getEvent(
     key: "Approval"
@@ -871,27 +942,6 @@ export interface AssetNFT extends BaseContract {
     ApprovalForAllEvent.InputTuple,
     ApprovalForAllEvent.OutputTuple,
     ApprovalForAllEvent.OutputObject
-  >;
-  getEvent(
-    key: "AssetMinted"
-  ): TypedContractEvent<
-    AssetMintedEvent.InputTuple,
-    AssetMintedEvent.OutputTuple,
-    AssetMintedEvent.OutputObject
-  >;
-  getEvent(
-    key: "AssetStatusChanged"
-  ): TypedContractEvent<
-    AssetStatusChangedEvent.InputTuple,
-    AssetStatusChangedEvent.OutputTuple,
-    AssetStatusChangedEvent.OutputObject
-  >;
-  getEvent(
-    key: "AssetTransferApproved"
-  ): TypedContractEvent<
-    AssetTransferApprovedEvent.InputTuple,
-    AssetTransferApprovedEvent.OutputTuple,
-    AssetTransferApprovedEvent.OutputObject
   >;
   getEvent(
     key: "BatchMetadataUpdate"
@@ -913,6 +963,13 @@ export interface AssetNFT extends BaseContract {
     ContractUnpausedEvent.InputTuple,
     ContractUnpausedEvent.OutputTuple,
     ContractUnpausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "IdentityMinted"
+  ): TypedContractEvent<
+    IdentityMintedEvent.InputTuple,
+    IdentityMintedEvent.OutputTuple,
+    IdentityMintedEvent.OutputObject
   >;
   getEvent(
     key: "MetadataUpdate"
@@ -987,39 +1044,6 @@ export interface AssetNFT extends BaseContract {
       ApprovalForAllEvent.OutputObject
     >;
 
-    "AssetMinted(uint256,string,address)": TypedContractEvent<
-      AssetMintedEvent.InputTuple,
-      AssetMintedEvent.OutputTuple,
-      AssetMintedEvent.OutputObject
-    >;
-    AssetMinted: TypedContractEvent<
-      AssetMintedEvent.InputTuple,
-      AssetMintedEvent.OutputTuple,
-      AssetMintedEvent.OutputObject
-    >;
-
-    "AssetStatusChanged(uint256,uint8)": TypedContractEvent<
-      AssetStatusChangedEvent.InputTuple,
-      AssetStatusChangedEvent.OutputTuple,
-      AssetStatusChangedEvent.OutputObject
-    >;
-    AssetStatusChanged: TypedContractEvent<
-      AssetStatusChangedEvent.InputTuple,
-      AssetStatusChangedEvent.OutputTuple,
-      AssetStatusChangedEvent.OutputObject
-    >;
-
-    "AssetTransferApproved(uint256,address,address,address)": TypedContractEvent<
-      AssetTransferApprovedEvent.InputTuple,
-      AssetTransferApprovedEvent.OutputTuple,
-      AssetTransferApprovedEvent.OutputObject
-    >;
-    AssetTransferApproved: TypedContractEvent<
-      AssetTransferApprovedEvent.InputTuple,
-      AssetTransferApprovedEvent.OutputTuple,
-      AssetTransferApprovedEvent.OutputObject
-    >;
-
     "BatchMetadataUpdate(uint256,uint256)": TypedContractEvent<
       BatchMetadataUpdateEvent.InputTuple,
       BatchMetadataUpdateEvent.OutputTuple,
@@ -1051,6 +1075,17 @@ export interface AssetNFT extends BaseContract {
       ContractUnpausedEvent.InputTuple,
       ContractUnpausedEvent.OutputTuple,
       ContractUnpausedEvent.OutputObject
+    >;
+
+    "IdentityMinted(uint256,address,string,string,string)": TypedContractEvent<
+      IdentityMintedEvent.InputTuple,
+      IdentityMintedEvent.OutputTuple,
+      IdentityMintedEvent.OutputObject
+    >;
+    IdentityMinted: TypedContractEvent<
+      IdentityMintedEvent.InputTuple,
+      IdentityMintedEvent.OutputTuple,
+      IdentityMintedEvent.OutputObject
     >;
 
     "MetadataUpdate(uint256)": TypedContractEvent<

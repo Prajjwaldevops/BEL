@@ -3,5 +3,7 @@
 /* eslint-disable */
 export type { AssetNFT } from "./AssetNFT";
 export type { AuditRegistry } from "./AuditRegistry";
+export type { IdentityNFT } from "./IdentityNFT";
+export type { IdentityRecovery } from "./IdentityRecovery";
 export type { IdentityRegistry } from "./IdentityRegistry";
 export type { RoleManager } from "./RoleManager";

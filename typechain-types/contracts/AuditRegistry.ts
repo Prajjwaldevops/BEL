@@ -24,12 +24,35 @@ import type {
 } from "../common";
 
 export declare namespace AuditRegistry {
+  export type BatchAnchorStruct = {
+    id: BigNumberish;
+    merkleRoot: BytesLike;
+    eventCount: BigNumberish;
+    timestamp: BigNumberish;
+    anchoredBy: AddressLike;
+  };
+
+  export type BatchAnchorStructOutput = [
+    id: bigint,
+    merkleRoot: string,
+    eventCount: bigint,
+    timestamp: bigint,
+    anchoredBy: string
+  ] & {
+    id: bigint;
+    merkleRoot: string;
+    eventCount: bigint;
+    timestamp: bigint;
+    anchoredBy: string;
+  };
+
   export type AuditLogStruct = {
     id: BigNumberish;
     actor: AddressLike;
     action: string;
     resourceId: string;
     detailsHash: string;
+    gasFee: BigNumberish;
     timestamp: BigNumberish;
   };
 
@@ -39,6 +62,7 @@ export declare namespace AuditRegistry {
     action: string,
     resourceId: string,
     detailsHash: string,
+    gasFee: bigint,
     timestamp: bigint
   ] & {
     id: bigint;
@@ -46,6 +70,7 @@ export declare namespace AuditRegistry {
     action: string;
     resourceId: string;
     detailsHash: string;
+    gasFee: bigint;
     timestamp: bigint;
   };
 }
@@ -53,23 +78,85 @@ export declare namespace AuditRegistry {
 export interface AuditRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "ACTION_GAS_FEE"
+      | "AUDITOR_ROLE"
+      | "DEFAULT_ADMIN_ROLE"
+      | "PAUSER_ROLE"
+      | "anchoredRoots"
       | "auditLogs"
+      | "batchAnchors"
+      | "getBatchAnchor"
+      | "getBatchCount"
       | "getLog"
       | "getLogCount"
-      | "owner"
+      | "getRoleAdmin"
+      | "grantRole"
+      | "hasRole"
+      | "isRootAnchored"
+      | "pause"
+      | "paused"
+      | "recordBatchRoot"
       | "recordLog"
-      | "renounceOwnership"
+      | "recordSystemLog"
+      | "renounceRole"
+      | "revokeRole"
       | "roleManager"
-      | "transferOwnership"
+      | "supportsInterface"
+      | "totalGasFeesCollected"
+      | "unpause"
+      | "verifyEventInBatch"
+      | "withdrawFees"
   ): FunctionFragment;
 
   getEvent(
-    nameOrSignatureOrTopic: "LogRecorded" | "OwnershipTransferred"
+    nameOrSignatureOrTopic:
+      | "BatchAnchored"
+      | "ContractPaused"
+      | "ContractUnpaused"
+      | "GasFeeCollected"
+      | "LogRecorded"
+      | "Paused"
+      | "RoleAdminChanged"
+      | "RoleGranted"
+      | "RoleRevoked"
+      | "Unpaused"
   ): EventFragment;
 
   encodeFunctionData(
+    functionFragment: "ACTION_GAS_FEE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "AUDITOR_ROLE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "DEFAULT_ADMIN_ROLE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "PAUSER_ROLE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "anchoredRoots",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "auditLogs",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "batchAnchors",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getBatchAnchor",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getBatchCount",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "getLog",
@@ -79,64 +166,171 @@ export interface AuditRegistryInterface extends Interface {
     functionFragment: "getLogCount",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "getRoleAdmin",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "grantRole",
+    values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "hasRole",
+    values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isRootAnchored",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(functionFragment: "pause", values?: undefined): string;
+  encodeFunctionData(functionFragment: "paused", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "recordBatchRoot",
+    values: [BytesLike, BigNumberish]
+  ): string;
   encodeFunctionData(
     functionFragment: "recordLog",
     values: [string, string, string]
   ): string;
   encodeFunctionData(
-    functionFragment: "renounceOwnership",
-    values?: undefined
+    functionFragment: "recordSystemLog",
+    values: [string, string, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "renounceRole",
+    values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "revokeRole",
+    values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "roleManager",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "transferOwnership",
-    values: [AddressLike]
+    functionFragment: "supportsInterface",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "totalGasFeesCollected",
+    values?: undefined
+  ): string;
+  encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "verifyEventInBatch",
+    values: [BytesLike, BytesLike, BytesLike[], BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawFees",
+    values?: undefined
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "ACTION_GAS_FEE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "AUDITOR_ROLE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "DEFAULT_ADMIN_ROLE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "PAUSER_ROLE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "anchoredRoots",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "auditLogs", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "batchAnchors",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getBatchAnchor",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getBatchCount",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getLog", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getLogCount",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "recordLog", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "renounceOwnership",
+    functionFragment: "getRoleAdmin",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isRootAnchored",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "recordBatchRoot",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "recordLog", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "recordSystemLog",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "renounceRole",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "roleManager",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "transferOwnership",
+    functionFragment: "supportsInterface",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "totalGasFeesCollected",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "verifyEventInBatch",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawFees",
     data: BytesLike
   ): Result;
 }
 
-export namespace LogRecordedEvent {
+export namespace BatchAnchoredEvent {
   export type InputTuple = [
-    id: BigNumberish,
-    actor: AddressLike,
-    action: string,
-    resourceId: string
+    batchId: BigNumberish,
+    merkleRoot: BytesLike,
+    eventCount: BigNumberish,
+    anchoredBy: AddressLike
   ];
   export type OutputTuple = [
-    id: bigint,
-    actor: string,
-    action: string,
-    resourceId: string
+    batchId: bigint,
+    merkleRoot: string,
+    eventCount: bigint,
+    anchoredBy: string
   ];
   export interface OutputObject {
-    id: bigint;
-    actor: string;
-    action: string;
-    resourceId: string;
+    batchId: bigint;
+    merkleRoot: string;
+    eventCount: bigint;
+    anchoredBy: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -144,12 +338,146 @@ export namespace LogRecordedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace OwnershipTransferredEvent {
-  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
-  export type OutputTuple = [previousOwner: string, newOwner: string];
+export namespace ContractPausedEvent {
+  export type InputTuple = [by: AddressLike];
+  export type OutputTuple = [by: string];
   export interface OutputObject {
-    previousOwner: string;
-    newOwner: string;
+    by: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ContractUnpausedEvent {
+  export type InputTuple = [by: AddressLike];
+  export type OutputTuple = [by: string];
+  export interface OutputObject {
+    by: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace GasFeeCollectedEvent {
+  export type InputTuple = [actor: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [actor: string, amount: bigint];
+  export interface OutputObject {
+    actor: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace LogRecordedEvent {
+  export type InputTuple = [
+    id: BigNumberish,
+    actor: AddressLike,
+    action: string,
+    resourceId: string,
+    gasFee: BigNumberish
+  ];
+  export type OutputTuple = [
+    id: bigint,
+    actor: string,
+    action: string,
+    resourceId: string,
+    gasFee: bigint
+  ];
+  export interface OutputObject {
+    id: bigint;
+    actor: string;
+    action: string;
+    resourceId: string;
+    gasFee: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RoleAdminChangedEvent {
+  export type InputTuple = [
+    role: BytesLike,
+    previousAdminRole: BytesLike,
+    newAdminRole: BytesLike
+  ];
+  export type OutputTuple = [
+    role: string,
+    previousAdminRole: string,
+    newAdminRole: string
+  ];
+  export interface OutputObject {
+    role: string;
+    previousAdminRole: string;
+    newAdminRole: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RoleGrantedEvent {
+  export type InputTuple = [
+    role: BytesLike,
+    account: AddressLike,
+    sender: AddressLike
+  ];
+  export type OutputTuple = [role: string, account: string, sender: string];
+  export interface OutputObject {
+    role: string;
+    account: string;
+    sender: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RoleRevokedEvent {
+  export type InputTuple = [
+    role: BytesLike,
+    account: AddressLike,
+    sender: AddressLike
+  ];
+  export type OutputTuple = [role: string, account: string, sender: string];
+  export interface OutputObject {
+    role: string;
+    account: string;
+    sender: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace UnpausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -200,20 +528,53 @@ export interface AuditRegistry extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  ACTION_GAS_FEE: TypedContractMethod<[], [bigint], "view">;
+
+  AUDITOR_ROLE: TypedContractMethod<[], [string], "view">;
+
+  DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
+
+  PAUSER_ROLE: TypedContractMethod<[], [string], "view">;
+
+  anchoredRoots: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+
   auditLogs: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, string, string, string, string, bigint] & {
+      [bigint, string, string, string, string, bigint, bigint] & {
         id: bigint;
         actor: string;
         action: string;
         resourceId: string;
         detailsHash: string;
+        gasFee: bigint;
         timestamp: bigint;
       }
     ],
     "view"
   >;
+
+  batchAnchors: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, string, bigint, bigint, string] & {
+        id: bigint;
+        merkleRoot: string;
+        eventCount: bigint;
+        timestamp: bigint;
+        anchoredBy: string;
+      }
+    ],
+    "view"
+  >;
+
+  getBatchAnchor: TypedContractMethod<
+    [_batchId: BigNumberish],
+    [AuditRegistry.BatchAnchorStructOutput],
+    "view"
+  >;
+
+  getBatchCount: TypedContractMethod<[], [bigint], "view">;
 
   getLog: TypedContractMethod<
     [_id: BigNumberish],
@@ -223,44 +584,146 @@ export interface AuditRegistry extends BaseContract {
 
   getLogCount: TypedContractMethod<[], [bigint], "view">;
 
-  owner: TypedContractMethod<[], [string], "view">;
+  getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
+
+  grantRole: TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  hasRole: TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  isRootAnchored: TypedContractMethod<
+    [_merkleRoot: BytesLike],
+    [boolean],
+    "view"
+  >;
+
+  pause: TypedContractMethod<[], [void], "nonpayable">;
+
+  paused: TypedContractMethod<[], [boolean], "view">;
+
+  recordBatchRoot: TypedContractMethod<
+    [_merkleRoot: BytesLike, _eventCount: BigNumberish],
+    [bigint],
+    "nonpayable"
+  >;
 
   recordLog: TypedContractMethod<
+    [_action: string, _resourceId: string, _detailsHash: string],
+    [bigint],
+    "payable"
+  >;
+
+  recordSystemLog: TypedContractMethod<
     [_action: string, _resourceId: string, _detailsHash: string],
     [bigint],
     "nonpayable"
   >;
 
-  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
-
-  roleManager: TypedContractMethod<[], [string], "view">;
-
-  transferOwnership: TypedContractMethod<
-    [newOwner: AddressLike],
+  renounceRole: TypedContractMethod<
+    [role: BytesLike, callerConfirmation: AddressLike],
     [void],
     "nonpayable"
   >;
+
+  revokeRole: TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  roleManager: TypedContractMethod<[], [string], "view">;
+
+  supportsInterface: TypedContractMethod<
+    [interfaceId: BytesLike],
+    [boolean],
+    "view"
+  >;
+
+  totalGasFeesCollected: TypedContractMethod<[], [bigint], "view">;
+
+  unpause: TypedContractMethod<[], [void], "nonpayable">;
+
+  verifyEventInBatch: TypedContractMethod<
+    [
+      _merkleRoot: BytesLike,
+      _leaf: BytesLike,
+      _proof: BytesLike[],
+      _leafIndex: BigNumberish
+    ],
+    [boolean],
+    "view"
+  >;
+
+  withdrawFees: TypedContractMethod<[], [void], "nonpayable">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
   getFunction(
+    nameOrSignature: "ACTION_GAS_FEE"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "AUDITOR_ROLE"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "DEFAULT_ADMIN_ROLE"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "PAUSER_ROLE"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "anchoredRoots"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "auditLogs"
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, string, string, string, string, bigint] & {
+      [bigint, string, string, string, string, bigint, bigint] & {
         id: bigint;
         actor: string;
         action: string;
         resourceId: string;
         detailsHash: string;
+        gasFee: bigint;
         timestamp: bigint;
       }
     ],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "batchAnchors"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, string, bigint, bigint, string] & {
+        id: bigint;
+        merkleRoot: string;
+        eventCount: bigint;
+        timestamp: bigint;
+        anchoredBy: string;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getBatchAnchor"
+  ): TypedContractMethod<
+    [_batchId: BigNumberish],
+    [AuditRegistry.BatchAnchorStructOutput],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getBatchCount"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "getLog"
   ): TypedContractMethod<
@@ -272,25 +735,122 @@ export interface AuditRegistry extends BaseContract {
     nameOrSignature: "getLogCount"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "owner"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: "getRoleAdmin"
+  ): TypedContractMethod<[role: BytesLike], [string], "view">;
+  getFunction(
+    nameOrSignature: "grantRole"
+  ): TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "hasRole"
+  ): TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [boolean],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "isRootAnchored"
+  ): TypedContractMethod<[_merkleRoot: BytesLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "pause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "paused"
+  ): TypedContractMethod<[], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "recordBatchRoot"
+  ): TypedContractMethod<
+    [_merkleRoot: BytesLike, _eventCount: BigNumberish],
+    [bigint],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "recordLog"
+  ): TypedContractMethod<
+    [_action: string, _resourceId: string, _detailsHash: string],
+    [bigint],
+    "payable"
+  >;
+  getFunction(
+    nameOrSignature: "recordSystemLog"
   ): TypedContractMethod<
     [_action: string, _resourceId: string, _detailsHash: string],
     [bigint],
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "renounceOwnership"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: "renounceRole"
+  ): TypedContractMethod<
+    [role: BytesLike, callerConfirmation: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "revokeRole"
+  ): TypedContractMethod<
+    [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "roleManager"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "transferOwnership"
-  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+    nameOrSignature: "supportsInterface"
+  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "totalGasFeesCollected"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "unpause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "verifyEventInBatch"
+  ): TypedContractMethod<
+    [
+      _merkleRoot: BytesLike,
+      _leaf: BytesLike,
+      _proof: BytesLike[],
+      _leafIndex: BigNumberish
+    ],
+    [boolean],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "withdrawFees"
+  ): TypedContractMethod<[], [void], "nonpayable">;
 
+  getEvent(
+    key: "BatchAnchored"
+  ): TypedContractEvent<
+    BatchAnchoredEvent.InputTuple,
+    BatchAnchoredEvent.OutputTuple,
+    BatchAnchoredEvent.OutputObject
+  >;
+  getEvent(
+    key: "ContractPaused"
+  ): TypedContractEvent<
+    ContractPausedEvent.InputTuple,
+    ContractPausedEvent.OutputTuple,
+    ContractPausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ContractUnpaused"
+  ): TypedContractEvent<
+    ContractUnpausedEvent.InputTuple,
+    ContractUnpausedEvent.OutputTuple,
+    ContractUnpausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "GasFeeCollected"
+  ): TypedContractEvent<
+    GasFeeCollectedEvent.InputTuple,
+    GasFeeCollectedEvent.OutputTuple,
+    GasFeeCollectedEvent.OutputObject
+  >;
   getEvent(
     key: "LogRecorded"
   ): TypedContractEvent<
@@ -299,15 +859,87 @@ export interface AuditRegistry extends BaseContract {
     LogRecordedEvent.OutputObject
   >;
   getEvent(
-    key: "OwnershipTransferred"
+    key: "Paused"
   ): TypedContractEvent<
-    OwnershipTransferredEvent.InputTuple,
-    OwnershipTransferredEvent.OutputTuple,
-    OwnershipTransferredEvent.OutputObject
+    PausedEvent.InputTuple,
+    PausedEvent.OutputTuple,
+    PausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "RoleAdminChanged"
+  ): TypedContractEvent<
+    RoleAdminChangedEvent.InputTuple,
+    RoleAdminChangedEvent.OutputTuple,
+    RoleAdminChangedEvent.OutputObject
+  >;
+  getEvent(
+    key: "RoleGranted"
+  ): TypedContractEvent<
+    RoleGrantedEvent.InputTuple,
+    RoleGrantedEvent.OutputTuple,
+    RoleGrantedEvent.OutputObject
+  >;
+  getEvent(
+    key: "RoleRevoked"
+  ): TypedContractEvent<
+    RoleRevokedEvent.InputTuple,
+    RoleRevokedEvent.OutputTuple,
+    RoleRevokedEvent.OutputObject
+  >;
+  getEvent(
+    key: "Unpaused"
+  ): TypedContractEvent<
+    UnpausedEvent.InputTuple,
+    UnpausedEvent.OutputTuple,
+    UnpausedEvent.OutputObject
   >;
 
   filters: {
-    "LogRecorded(uint256,address,string,string)": TypedContractEvent<
+    "BatchAnchored(uint256,bytes32,uint256,address)": TypedContractEvent<
+      BatchAnchoredEvent.InputTuple,
+      BatchAnchoredEvent.OutputTuple,
+      BatchAnchoredEvent.OutputObject
+    >;
+    BatchAnchored: TypedContractEvent<
+      BatchAnchoredEvent.InputTuple,
+      BatchAnchoredEvent.OutputTuple,
+      BatchAnchoredEvent.OutputObject
+    >;
+
+    "ContractPaused(address)": TypedContractEvent<
+      ContractPausedEvent.InputTuple,
+      ContractPausedEvent.OutputTuple,
+      ContractPausedEvent.OutputObject
+    >;
+    ContractPaused: TypedContractEvent<
+      ContractPausedEvent.InputTuple,
+      ContractPausedEvent.OutputTuple,
+      ContractPausedEvent.OutputObject
+    >;
+
+    "ContractUnpaused(address)": TypedContractEvent<
+      ContractUnpausedEvent.InputTuple,
+      ContractUnpausedEvent.OutputTuple,
+      ContractUnpausedEvent.OutputObject
+    >;
+    ContractUnpaused: TypedContractEvent<
+      ContractUnpausedEvent.InputTuple,
+      ContractUnpausedEvent.OutputTuple,
+      ContractUnpausedEvent.OutputObject
+    >;
+
+    "GasFeeCollected(address,uint256)": TypedContractEvent<
+      GasFeeCollectedEvent.InputTuple,
+      GasFeeCollectedEvent.OutputTuple,
+      GasFeeCollectedEvent.OutputObject
+    >;
+    GasFeeCollected: TypedContractEvent<
+      GasFeeCollectedEvent.InputTuple,
+      GasFeeCollectedEvent.OutputTuple,
+      GasFeeCollectedEvent.OutputObject
+    >;
+
+    "LogRecorded(uint256,address,string,string,uint256)": TypedContractEvent<
       LogRecordedEvent.InputTuple,
       LogRecordedEvent.OutputTuple,
       LogRecordedEvent.OutputObject
@@ -318,15 +950,59 @@ export interface AuditRegistry extends BaseContract {
       LogRecordedEvent.OutputObject
     >;
 
-    "OwnershipTransferred(address,address)": TypedContractEvent<
-      OwnershipTransferredEvent.InputTuple,
-      OwnershipTransferredEvent.OutputTuple,
-      OwnershipTransferredEvent.OutputObject
+    "Paused(address)": TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
     >;
-    OwnershipTransferred: TypedContractEvent<
-      OwnershipTransferredEvent.InputTuple,
-      OwnershipTransferredEvent.OutputTuple,
-      OwnershipTransferredEvent.OutputObject
+    Paused: TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
+    >;
+
+    "RoleAdminChanged(bytes32,bytes32,bytes32)": TypedContractEvent<
+      RoleAdminChangedEvent.InputTuple,
+      RoleAdminChangedEvent.OutputTuple,
+      RoleAdminChangedEvent.OutputObject
+    >;
+    RoleAdminChanged: TypedContractEvent<
+      RoleAdminChangedEvent.InputTuple,
+      RoleAdminChangedEvent.OutputTuple,
+      RoleAdminChangedEvent.OutputObject
+    >;
+
+    "RoleGranted(bytes32,address,address)": TypedContractEvent<
+      RoleGrantedEvent.InputTuple,
+      RoleGrantedEvent.OutputTuple,
+      RoleGrantedEvent.OutputObject
+    >;
+    RoleGranted: TypedContractEvent<
+      RoleGrantedEvent.InputTuple,
+      RoleGrantedEvent.OutputTuple,
+      RoleGrantedEvent.OutputObject
+    >;
+
+    "RoleRevoked(bytes32,address,address)": TypedContractEvent<
+      RoleRevokedEvent.InputTuple,
+      RoleRevokedEvent.OutputTuple,
+      RoleRevokedEvent.OutputObject
+    >;
+    RoleRevoked: TypedContractEvent<
+      RoleRevokedEvent.InputTuple,
+      RoleRevokedEvent.OutputTuple,
+      RoleRevokedEvent.OutputObject
+    >;
+
+    "Unpaused(address)": TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
+    >;
+    Unpaused: TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
     >;
   };
 }
