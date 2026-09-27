@@ -14,18 +14,22 @@ import { createClient } from '@/lib/supabase/middleware';
 const PUBLIC_ROUTES = [
   '/',              // Landing page
   '/login',         // Login page
-  '/register',      // Registration page (invite token validated server-side)
   '/verify',        // Public verification portal
   '/unauthorized',  // Access denied page
   '/api/auth/nonce',       // Wallet nonce generation
   '/api/auth/login',       // Login endpoint
-  '/api/auth/register',    // Registration endpoint
   '/api/auth/verify',      // Auth verification
   '/api/verify/asset',     // Public asset verification
   '/api/verify/document',  // Public document verification
   '/api/verify/transaction', // Public transaction verification
   '/api/verify/credential',  // Public credential verification
   '/api/health',           // Health check endpoint
+];
+
+// Admin-only routes (require ADMIN role specifically)
+const ADMIN_ONLY_ROUTES = [
+  '/register',      // User registration - ADMIN only
+  '/api/auth/register',  // Registration API - ADMIN only
 ];
 
 // Route patterns that require authentication
@@ -70,9 +74,21 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 /**
+ * Check if a route requires ADMIN role specifically
+ */
+function isAdminOnlyRoute(pathname: string): boolean {
+  return ADMIN_ONLY_ROUTES.some(route => pathname.startsWith(route));
+}
+
+/**
  * Check if a route requires authentication
  */
 function requiresAuth(pathname: string): boolean {
+  // Admin-only routes require auth (checked separately for role)
+  if (isAdminOnlyRoute(pathname)) {
+    return true;
+  }
+  
   // Check if route matches any protected pattern
   return PROTECTED_PATTERNS.some(pattern => pathname.startsWith(pattern));
 }
@@ -120,20 +136,23 @@ export async function middleware(request: NextRequest) {
       .single();
     
     if (!profile) {
-      // User exists but no profile - redirect to complete registration
+      // User exists but no profile - redirect to unauthorized
+      // (Profile should be created during registration)
       const url = request.nextUrl.clone();
-      url.pathname = '/register';
-      url.searchParams.set('complete', 'true');
+      url.pathname = '/unauthorized';
+      url.searchParams.set('reason', 'no_profile');
       return NextResponse.redirect(url);
     }
     
-    // Check if user has at least one active role
-    const hasActiveRole = profile.user_roles.some((ur: any) => 
-      ur.is_active && 
-      (!ur.expires_at || new Date(ur.expires_at) > new Date())
-    );
+    // Extract active roles
+    const activeRoles = profile.user_roles
+      .filter((ur: any) => 
+        ur.is_active && 
+        (!ur.expires_at || new Date(ur.expires_at) > new Date())
+      )
+      .map((ur: any) => ur.role_name);
     
-    if (!hasActiveRole) {
+    if (activeRoles.length === 0) {
       // User has no active roles - redirect to unauthorized
       const url = request.nextUrl.clone();
       url.pathname = '/unauthorized';
@@ -141,8 +160,20 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     
-    // User is authenticated and has active roles - allow access
-    // Note: Page-level RBAC will handle specific role requirements
+    // Check if route requires ADMIN role specifically
+    if (isAdminOnlyRoute(pathname)) {
+      if (!activeRoles.includes('ADMIN')) {
+        // User doesn't have ADMIN role - redirect to unauthorized
+        const url = request.nextUrl.clone();
+        url.pathname = '/unauthorized';
+        url.searchParams.set('reason', 'admin_required');
+        url.searchParams.set('route', pathname);
+        return NextResponse.redirect(url);
+      }
+    }
+    
+    // User is authenticated and has required permissions - allow access
+    // Note: Page-level RBAC will handle additional specific role requirements
     return NextResponse.next();
     
   } catch (error) {

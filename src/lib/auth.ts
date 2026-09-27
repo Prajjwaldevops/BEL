@@ -161,6 +161,13 @@ export const ROUTE_PERMISSIONS: Record<string, {
     description: 'Dashboard home - all roles'
   },
   
+  // Registration - ADMIN only
+  '/register': {
+    roles: ['ADMIN'],
+    permissions: ['identity:manage'],
+    description: 'User registration - ADMIN only'
+  },
+  
   // Admin-only routes
   '/dashboard/users': {
     roles: ['ADMIN'],

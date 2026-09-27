@@ -44,16 +44,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Public Routes (No Auth Required):**
 - `/` - Landing page
 - `/login` - Login page
-- `/register` - Registration (invite token validated server-side)
 - `/verify` - Public verification portal
 - `/unauthorized` - Access denied page
-- `/api/auth/*` - Auth endpoints
+- `/api/auth/nonce` - Wallet nonce generation
+- `/api/auth/login` - Login endpoint
+- `/api/auth/verify` - Auth verification
 - `/api/verify/*` - Public verification APIs
 - `/api/health` - Health check
 - Static files (`/_next`, `/static`, images, etc.)
 
+**Admin-Only Routes (Require ADMIN Role):**
+- `/register` - User registration page (ADMIN only can create new users)
+- `/api/auth/register` - Registration API endpoint (ADMIN only)
+
 **Protected Routes (Auth Required):**
-- `/dashboard/*` - All dashboard routes
+- `/register` - **ADMIN ONLY** - User registration (create new accounts)
+- `/dashboard/*` - All dashboard routes (role-specific access)
+- `/api/auth/register` - **ADMIN ONLY** - Registration API
 - `/api/access/*` - Access control APIs
 - `/api/approvals/*` - Approval workflow
 - `/api/audit/*` - Audit logs
@@ -79,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   
 - Protected route configuration in `ROUTE_PERMISSIONS`:
   - `/dashboard` - All authenticated roles
+  - `/register` - **ADMIN only**
   - `/dashboard/users` - ADMIN only
   - `/dashboard/identity` - ADMIN only
   - `/dashboard/settings` - ADMIN only
@@ -100,6 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Files Created:**
 - `src/middleware.ts` - Edge-level authentication middleware
 - `src/lib/supabase/middleware.ts` - Supabase client for middleware
+- `src/app/register/page.tsx` - Server wrapper with ADMIN-only auth
+- `src/app/register/RegisterClient.tsx` - Client component for registration UI
 - `src/app/dashboard/DashboardClient.tsx`
 - `src/app/dashboard/users/UsersClient.tsx`
 - `src/app/dashboard/identity/IdentityClient.tsx`
@@ -114,9 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/app/dashboard/ai-analysis/AiAnalysisClient.tsx`
 
 **Files Modified:**
-- `src/lib/auth.ts` - Auth helper functions and route permissions
+- `src/lib/auth.ts` - Auth helper functions and route permissions (added /register as ADMIN-only)
+- `src/middleware.ts` - Edge authentication with ADMIN-only route checking
 - `src/app/dashboard/layout.tsx` - Auth check at layout level
 - `src/app/dashboard/*/page.tsx` - All dashboard pages (11 files)
+- `src/app/register/page.tsx` - ADMIN-only protection
 - `src/app/unauthorized/page.tsx` - Access denied page
 - `src/app/login/page.tsx` - Support redirect parameter for return URLs
 
@@ -135,13 +147,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Testing:**
 1. Without login → Try `/dashboard` → redirected to `/login?redirect=/dashboard`
-2. Without login → Try `/register` → Access allowed (public route)
+2. Without login → Try `/register` → redirected to `/login?redirect=/register` (ADMIN-only page)
 3. After login with redirect → Returned to intended page
 4. VIEWER role → Try `/dashboard/users` → redirected to `/unauthorized`
-5. ALTER role → Try `/dashboard/assets` → Access granted
-6. ADMIN role → Try any route → Access granted
-7. DEBUGGER role → Try `/dashboard/security` → Access granted
-8. Direct URL manipulation → Try `/api/audit/log-action` → 401/redirect
+5. VIEWER role → Try `/register` → redirected to `/unauthorized` (ADMIN required)
+6. ALTER role → Try `/dashboard/assets` → Access granted
+7. ALTER role → Try `/register` → redirected to `/unauthorized` (ADMIN required)
+8. ADMIN role → Try any route → Access granted
+9. DEBUGGER role → Try `/dashboard/security` → Access granted
+10. DEBUGGER role → Try `/register` → redirected to `/unauthorized` (ADMIN required)
+11. Direct URL manipulation → Try `/api/audit/log-action` → 401/redirect
 
 **Compliance:**
 - ✅ OWASP A01:2021 - Broken Access Control (FIXED)
