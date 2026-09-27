@@ -73,7 +73,7 @@ export async function checkRateLimit(params: {
   email?: string;
   ipAddress?: string;
 }): Promise<RateLimitResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase.rpc('check_rate_limit', {
     p_username: params.username || null,
@@ -117,7 +117,7 @@ export async function recordLoginAttempt(params: {
   success: boolean;
   failureReason?: string;
 }): Promise<string | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase.rpc('record_login_attempt', {
     p_username: params.username || null,
@@ -145,7 +145,7 @@ export async function adminUnlockAccount(params: {
   reason: string;
   ipAddress?: string;
 }): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase.rpc('admin_unlock_account', {
     p_username: params.username,
@@ -171,7 +171,7 @@ export async function getLoginAttempts(params: {
   ipAddress?: string;
   limit?: number;
 }): Promise<LoginAttempt[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   let query = supabase
     .from('login_attempts')
@@ -217,7 +217,7 @@ export async function getUnlockHistory(params: {
   username?: string;
   limit?: number;
 }): Promise<any[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   let query = supabase
     .from('account_unlocks')
@@ -246,7 +246,7 @@ export async function getUnlockHistory(params: {
  * Get active rate limit configuration
  */
 export async function getRateLimitConfig(): Promise<RateLimitConfig | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase
     .from('rate_limit_config')
@@ -281,7 +281,7 @@ export async function getRateLimitConfig(): Promise<RateLimitConfig | null> {
 export async function updateRateLimitConfig(
   config: Partial<Omit<RateLimitConfig, 'id' | 'createdAt'>>
 ): Promise<RateLimitConfig | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Deactivate current config
   await supabase
