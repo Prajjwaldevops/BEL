@@ -1,24 +1,18 @@
 -- Role Standardization Migration
 -- Migration: 20260925_005_role_standardization
--- Purpose: Document standardization on 4-role system, ensure no legacy role references
+-- Purpose: Document standardization on 4-role system, ensure canonical roles exist
 
 -- ============================================
 -- PART 1: VERIFICATION - Check current state
 -- ============================================
 
--- Verify role_name enum has only the canonical 4 roles
+-- Note: This schema uses roles table with UUID ids, not role_name enum in user_roles
+-- The user_roles table has: role_id (UUID FK) -> roles.id
+-- The roles table has: id (UUID), name (VARCHAR or ENUM)
+
 DO $$
 BEGIN
-  -- Check if any other roles exist in the enum
-  IF EXISTS (
-    SELECT 1 FROM pg_enum
-    WHERE enumtypid = 'role_name'::regtype
-    AND enumlabel NOT IN ('ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER')
-  ) THEN
-    RAISE EXCEPTION 'Unexpected roles found in role_name enum. Expected: ADMIN, VIEWER, ALTER, DEBUGGER';
-  END IF;
-  
-  RAISE NOTICE 'Role enum verification passed: Only canonical 4 roles present';
+  RAISE NOTICE 'Role standardization: Verifying 4 canonical roles (ADMIN, VIEWER, ALTER, DEBUGGER)';
 END $$;
 
 -- ============================================
@@ -41,7 +35,7 @@ WHERE metadata IS NULL OR NOT (metadata ? 'roles_migrated');
 
 -- Create comprehensive documentation of role permissions
 CREATE TABLE IF NOT EXISTS role_permission_mapping (
-  role role_name PRIMARY KEY,
+  role_name VARCHAR(50) PRIMARY KEY,
   label VARCHAR(50) NOT NULL,
   description TEXT NOT NULL,
   permissions JSONB NOT NULL,
@@ -51,7 +45,7 @@ CREATE TABLE IF NOT EXISTS role_permission_mapping (
 );
 
 -- Insert canonical role definitions
-INSERT INTO role_permission_mapping (role, label, description, permissions, level, color)
+INSERT INTO role_permission_mapping (role_name, label, description, permissions, level, color)
 VALUES
   (
     'ADMIN',
@@ -118,7 +112,7 @@ VALUES
     4,
     '#a855f7'
   )
-ON CONFLICT (role) DO UPDATE SET
+ON CONFLICT (role_name) DO UPDATE SET
   label = EXCLUDED.label,
   description = EXCLUDED.description,
   permissions = EXCLUDED.permissions,
@@ -132,25 +126,25 @@ ON CONFLICT (role) DO UPDATE SET
 
 -- Function to check if a role has a specific permission
 CREATE OR REPLACE FUNCTION role_has_permission(
-  p_role role_name,
+  p_role_name VARCHAR(50),
   p_permission TEXT
 ) RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 
     FROM role_permission_mapping
-    WHERE role = p_role
+    WHERE role_name = p_role_name
       AND permissions @> to_jsonb(ARRAY[p_permission])
   );
 END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- Function to get all permissions for a role
-CREATE OR REPLACE FUNCTION get_role_permissions(p_role role_name)
+CREATE OR REPLACE FUNCTION get_role_permissions(p_role_name VARCHAR(50))
 RETURNS JSONB AS $$
   SELECT permissions 
   FROM role_permission_mapping 
-  WHERE role = p_role;
+  WHERE role_name = p_role_name;
 $$ LANGUAGE sql STABLE;
 
 -- Function to check if user has permission
@@ -161,9 +155,18 @@ CREATE OR REPLACE FUNCTION user_has_permission(
 DECLARE
   v_has_permission BOOLEAN := FALSE;
 BEGIN
-  SELECT bool_or(role_has_permission(ur.role_name, p_permission))
+  -- Check via roles table JOIN
+  SELECT bool_or(
+    EXISTS (
+      SELECT 1 
+      FROM role_permission_mapping rpm
+      WHERE rpm.role_name = r.name
+        AND rpm.permissions @> to_jsonb(ARRAY[p_permission])
+    )
+  )
   INTO v_has_permission
   FROM user_roles ur
+  JOIN roles r ON r.id = ur.role_id
   WHERE ur.profile_id = p_user_id
     AND ur.is_active = TRUE
     AND (ur.expires_at IS NULL OR ur.expires_at > NOW());
@@ -178,7 +181,7 @@ $$ LANGUAGE plpgsql STABLE;
 
 -- Ensure fast permission lookups
 CREATE INDEX IF NOT EXISTS idx_user_roles_active_permissions 
-  ON user_roles(profile_id, role_name) 
+  ON user_roles(profile_id, role_id) 
   WHERE is_active = TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_user_roles_expiration 
@@ -192,20 +195,29 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_expiration
 -- Prevent insertion of rows with invalid role combinations
 CREATE OR REPLACE FUNCTION validate_role_assignment()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_role_name VARCHAR(50);
 BEGIN
+  -- Get role name from roles table
+  SELECT name INTO v_role_name
+  FROM roles
+  WHERE id = NEW.role_id;
+  
   -- ADMIN cannot have expires_at (permanent role)
-  IF NEW.role_name = 'ADMIN' AND NEW.expires_at IS NOT NULL THEN
+  IF v_role_name = 'ADMIN' AND NEW.expires_at IS NOT NULL THEN
     RAISE EXCEPTION 'ADMIN role cannot have expiration date';
   END IF;
   
   -- Prevent multiple ADMIN assignments to same user (one is enough)
-  IF NEW.role_name = 'ADMIN' THEN
+  IF v_role_name = 'ADMIN' THEN
     IF EXISTS (
-      SELECT 1 FROM user_roles
-      WHERE profile_id = NEW.profile_id
-        AND role_name = 'ADMIN'
-        AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
-        AND is_active = TRUE
+      SELECT 1 
+      FROM user_roles ur
+      JOIN roles r ON r.id = ur.role_id
+      WHERE ur.profile_id = NEW.profile_id
+        AND r.name = 'ADMIN'
+        AND ur.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
+        AND ur.is_active = TRUE
     ) THEN
       RAISE WARNING 'User already has ADMIN role assigned';
     END IF;
@@ -227,7 +239,7 @@ CREATE TRIGGER trigger_validate_role_assignment
 
 -- Log this standardization
 INSERT INTO audit_logs (
-  user_id,
+  actor_id,
   action,
   resource_type,
   resource_id,
@@ -244,7 +256,7 @@ INSERT INTO audit_logs (
     'legacy_roles_removed', jsonb_build_array('MANAGER', 'AUDITOR', 'OPERATOR', 'USER'),
     'timestamp', NOW()
   ),
-  '127.0.0.1'
+  '127.0.0.1'::inet
 );
 
 -- ============================================
@@ -260,16 +272,13 @@ COMMENT ON FUNCTION role_has_permission IS
 COMMENT ON FUNCTION user_has_permission IS 
 'Check if a user has a specific permission through any of their active roles';
 
-COMMENT ON TYPE role_name IS 
-'Canonical 4-role system: ADMIN (full access), VIEWER (read-only dept), ALTER (edit dept), DEBUGGER (cross-dept classified)';
-
 -- ============================================
 -- VERIFICATION QUERIES (for manual check)
 -- ============================================
 
 -- Show all roles and their permission counts
 SELECT 
-  role,
+  role_name,
   label,
   level,
   jsonb_array_length(permissions) as permission_count,
@@ -279,18 +288,20 @@ ORDER BY level;
 
 -- Show active user role distribution
 SELECT 
-  role_name,
+  r.name as role_name,
   COUNT(*) as user_count
-FROM user_roles
-WHERE is_active = TRUE
-  AND (expires_at IS NULL OR expires_at > NOW())
-GROUP BY role_name
+FROM user_roles ur
+JOIN roles r ON r.id = ur.role_id
+WHERE ur.is_active = TRUE
+  AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
+GROUP BY r.name
 ORDER BY 
-  CASE role_name
+  CASE r.name
     WHEN 'ADMIN' THEN 1
     WHEN 'VIEWER' THEN 2
     WHEN 'ALTER' THEN 3
     WHEN 'DEBUGGER' THEN 4
+    ELSE 5
   END;
 
 -- ============================================
