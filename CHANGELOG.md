@@ -498,6 +498,73 @@ GROUP BY field_name, access_reason;
 
 ### Added - Part D: Repository Housekeeping
 
+#### D6: Role Standardization (2026-09-25)
+
+**What Changed:**
+- Removed legacy role system (MANAGER, AUDITOR, OPERATOR, USER) from all user-facing UI
+- Standardized on canonical 4-role system: ADMIN, VIEWER, ALTER, DEBUGGER
+- Created comprehensive role permission mapping in database
+- Added helper functions for permission checks
+- Updated landing page Access Control section with correct roles
+
+**Why:**
+- Two role systems coexisted causing confusion (old 5-role vs new 4-role)
+- Database and constants already used 4-role system, but landing page showed old 5
+- Need single source of truth for permissions
+- Simpler mental model: Admin (full), Viewer (read-only), Alter (edit dept), Debugger (classified)
+
+**Technical Implementation:**
+- **Database:** Created `role_permission_mapping` table with all permissions per role
+- **Functions Added:**
+  - `role_has_permission(role, permission)` - Check if role has specific permission
+  - `get_role_permissions(role)` - Get all permissions for a role
+  - `user_has_permission(user_id, permission)` - Check user permission across all roles
+- **Validation:** Trigger prevents ADMIN role from having expiration date
+- **Frontend:** Updated `AccessControlSection.tsx` to show correct 4 roles
+
+**Permission Mapping:**
+
+| Role | Level | Permissions |
+|------|-------|-------------|
+| **ADMIN** | 1 | Full system access, identity management, role assignment, asset CRUD, audit read/write, blockchain admin, classified access, AI analysis, invite tokens |
+| **VIEWER** | 2 | View assets in department, view own profile, view department documents, view department audits |
+| **ALTER** | 3 | View department, edit minor changes, manage own profile, upload documents, view own audit trail |
+| **DEBUGGER** | 4 | View all assets, edit all assets, view classified info, generate reports, security investigations, cross-department access, incident investigation |
+
+**Files Added:**
+- `database/migrations/20260925_005_role_standardization.sql` - Complete migration with documentation
+
+**Files Modified:**
+- `src/components/landing/AccessControlSection.tsx` - Updated role matrix
+- `CHANGELOG.md` - This file
+
+**Migration Path:**
+1. Apply migration: Creates `role_permission_mapping` table
+2. Inserts canonical role definitions
+3. Creates helper functions for permission checks
+4. Adds validation triggers
+5. No data migration needed (database already used correct roles)
+
+**Benefits:**
+- ✅ Single source of truth for roles
+- ✅ Programmatic permission checking
+- ✅ Clear role hierarchy documentation
+- ✅ No confusion between old/new roles
+- ✅ Foundation for fine-grained permission system
+
+**Removed Role Mappings:**
+- OLD: `MANAGER` → NEW: Responsibilities split between `ADMIN` (role assignment) and `ALTER` (asset management)
+- OLD: `AUDITOR` → NEW: `DEBUGGER` (cross-department audit access)
+- OLD: `OPERATOR` → NEW: `ALTER` (operational asset changes)
+- OLD: `USER` → NEW: `VIEWER` (basic read access)
+
+**Notes:**
+- Smart contracts (`RoleManager.sol`) still need updating to use these 4 roles only
+- Current on-chain roles may reference old names - future migration needed
+- Permission strings follow pattern: `resource:action_scope` (e.g., `asset:view_department`)
+
+---
+
 #### D2: Dashboard Real Data Integration (2026-09-17)
 
 **What Changed:**

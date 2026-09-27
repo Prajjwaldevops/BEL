@@ -7,10 +7,9 @@ import { staggerContainer, fadeInUp } from '@/lib/animations';
 
 const roles = [
   { name: 'ADMIN', icon: Shield, color: '#ef4444', permissions: ['Full System Access', 'Identity Management', 'Role Assignment', 'Asset Control', 'Audit Access', 'System Config'] },
-  { name: 'MANAGER', icon: UserCog, color: '#f59e0b', permissions: ['Identity Management', 'Role Assignment', 'Asset Control', 'Audit Access', '', ''] },
-  { name: 'AUDITOR', icon: Eye, color: '#a855f7', permissions: ['', '', '', 'Audit Access', 'Blockchain View', 'Read-Only Reports'] },
-  { name: 'OPERATOR', icon: Wrench, color: '#3b82f6', permissions: ['', '', 'Asset Operations', '', 'Document Upload', ''] },
-  { name: 'USER', icon: User, color: '#00ff88', permissions: ['', '', '', '', 'View Own Assets', 'Profile Access'] },
+  { name: 'VIEWER', icon: Eye, color: '#3b82f6', permissions: ['', '', '', '', 'View Dept Docs', 'View Own Profile'] },
+  { name: 'ALTER', icon: Wrench, color: '#f59e0b', permissions: ['', '', 'Minor Edits (Dept)', '', 'Upload Documents', 'Manage Own'] },
+  { name: 'DEBUGGER', icon: UserCog, color: '#a855f7', permissions: ['', '', 'Edit All Assets', 'View All Audits', 'Cross-Dept Access', 'View Classified'] },
 ];
 
 const permissionLabels = ['System Config', 'Identity Mgmt', 'Asset Control', 'Audit Access', 'Documents', 'Profile'];
