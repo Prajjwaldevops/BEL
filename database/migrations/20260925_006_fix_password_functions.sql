@@ -5,6 +5,11 @@
 -- Enable pgcrypto extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Drop existing functions to avoid conflicts
+DROP FUNCTION IF EXISTS hash_password(TEXT);
+DROP FUNCTION IF EXISTS verify_password(TEXT, TEXT);
+DROP FUNCTION IF EXISTS verify_password(UUID, TEXT);
+
 -- Function to hash a password using bcrypt
 -- This is called during user registration
 CREATE OR REPLACE FUNCTION hash_password(p_password TEXT)
