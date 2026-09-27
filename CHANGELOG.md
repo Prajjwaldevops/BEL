@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔒 CRITICAL SECURITY FIX - Authentication Gates (2026-09-25)
+
+**ISSUE:** Dashboard pages were accessible without login and lacked role-based access control enforcement.
+
+**What Changed:**
+- Implemented server-side authentication gates on all `/dashboard` routes
+- Added role-based access control (RBAC) enforcement at page level
+- Protected all dashboard sub-pages with `requireRouteAccess()` checks
+- Forced dynamic rendering for all authenticated routes
+- Created `/unauthorized` page for access denied scenarios
+
+**Technical Implementation:**
+- Updated `src/lib/auth.ts` with comprehensive auth functions:
+  - `getCurrentUser()` - Fetch authenticated user with active roles
+  - `requireAuth()` - Redirect to `/login` if not authenticated
+  - `requireRoles(roles)` - Enforce specific role requirements
+  - `requirePermission(permission)` - Check permission access
+  - `canAccessRoute(user, route)` - Evaluate route access rules
+  - `requireRouteAccess(route)` - Combined auth + role check with redirect
+  
+- Protected route configuration in `ROUTE_PERMISSIONS`:
+  - `/dashboard` - All authenticated roles
+  - `/dashboard/users` - ADMIN only
+  - `/dashboard/identity` - ADMIN only
+  - `/dashboard/settings` - ADMIN only
+  - `/dashboard/assets` - ADMIN, ALTER, DEBUGGER
+  - `/dashboard/documents` - ADMIN, ALTER, DEBUGGER
+  - `/dashboard/ipfs` - ADMIN, ALTER, DEBUGGER
+  - `/dashboard/audit` - ADMIN, DEBUGGER
+  - `/dashboard/security` - ADMIN, DEBUGGER
+  - `/dashboard/ai-analysis` - ADMIN, DEBUGGER
+  - `/dashboard/transactions` - All roles
+  - `/dashboard/lifecycle` - All roles
+
+- Architecture pattern:
+  1. Converted client pages to `*Client.tsx` components
+  2. Created new server-side `page.tsx` wrappers
+  3. Added `export const dynamic = 'force-dynamic'` to prevent static generation
+  4. Called `await requireRouteAccess(route)` in each page
+
+**Files Modified:**
+- `src/lib/auth.ts` - Auth helper functions and route permissions
+- `src/app/dashboard/layout.tsx` - Auth check at layout level
+- `src/app/dashboard/*/page.tsx` - All dashboard pages (11 files)
+- `src/app/unauthorized/page.tsx` - Access denied page
+
+**Files Created:**
+- `src/app/dashboard/DashboardClient.tsx`
+- `src/app/dashboard/users/UsersClient.tsx`
+- `src/app/dashboard/identity/IdentityClient.tsx`
+- `src/app/dashboard/assets/AssetsClient.tsx`
+- `src/app/dashboard/documents/DocumentsClient.tsx`
+- `src/app/dashboard/ipfs/IpfsClient.tsx`
+- `src/app/dashboard/audit/AuditClient.tsx`
+- `src/app/dashboard/security/SecurityClient.tsx`
+- `src/app/dashboard/settings/SettingsClient.tsx`
+- `src/app/dashboard/transactions/TransactionsClient.tsx`
+- `src/app/dashboard/lifecycle/LifecycleClient.tsx`
+- `src/app/dashboard/ai-analysis/AiAnalysisClient.tsx`
+
+**Security Impact:**
+- ✅ No unauthenticated access to any dashboard page
+- ✅ Role-based page access enforced at server level
+- ✅ Automatic redirect to `/login` for unauthenticated users
+- ✅ Automatic redirect to `/unauthorized` for insufficient permissions
+- ✅ Server-side validation prevents client-side bypass
+- ✅ Works with Supabase auth + user_roles system
+
+**Testing:**
+1. Without login → redirected to `/login`
+2. VIEWER role → cannot access `/dashboard/users` (redirected to `/unauthorized`)
+3. ALTER role → can access `/dashboard/assets` but not `/dashboard/users`
+4. ADMIN role → can access all routes
+5. DEBUGGER role → can access audit and security pages
+
+**Compliance:**
+- OWASP A01:2021 - Broken Access Control (FIXED)
+- OWASP A07:2021 - Identification and Authentication Failures (FIXED)
+
+---
+
 ### Added - Part A: Security Hardening
 
 #### A1: Self-Custodial Custody Model (2026-09-17)
