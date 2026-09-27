@@ -4,6 +4,15 @@
 -- Enable pgcrypto if not enabled
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Ensure roles table has the canonical 4 roles
+INSERT INTO roles (name, description, is_system_role, permissions)
+VALUES 
+  ('ADMIN', 'Full system administrator access', true, '["system:admin", "identity:manage", "role:assign"]'::jsonb),
+  ('VIEWER', 'Read-only access within department', true, '["asset:view_department", "profile:view_own"]'::jsonb),
+  ('ALTER', 'View and minor edits within department', true, '["asset:view_department", "asset:edit_minor", "document:upload"]'::jsonb),
+  ('DEBUGGER', 'Cross-department access and security investigations', true, '["asset:view_all", "classified:view", "security:view"]'::jsonb)
+ON CONFLICT (name) DO NOTHING;
+
 -- Delete existing test admin if exists
 DELETE FROM profiles WHERE username = 'admin';
 
@@ -47,15 +56,18 @@ INSERT INTO profiles (
 -- Assign ADMIN role
 INSERT INTO user_roles (
   profile_id,
-  role_name,
+  role_id,
   is_active
 )
 SELECT 
-  id,
-  'ADMIN',
+  p.id,
+  r.id,
   true
-FROM profiles
-WHERE username = 'admin';
+FROM profiles p
+CROSS JOIN roles r
+WHERE p.username = 'admin'
+  AND r.name = 'ADMIN'
+ON CONFLICT DO NOTHING;
 
 -- Display test credentials
 SELECT 
