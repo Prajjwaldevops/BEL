@@ -498,6 +498,62 @@ GROUP BY field_name, access_reason;
 
 ### Added - Part D: Repository Housekeeping
 
+#### E5: Public Verification Portal (2026-09-25)
+
+**What Changed:**
+- Created public `/verify` page for authenticity verification without login
+- Added 4 verification API endpoints for different resource types
+- On-chain proof display with block explorer links
+- Real-time verification with database + blockchain cross-check
+
+**Why:**
+- Demonstrates "blockchain-verified" claim with clickable proof
+- High demo value - anyone can check authenticity instantly
+- Closes competitive gap vs TrustForge submission
+- Eliminates "trust us" - shows actual on-chain evidence
+
+**API Endpoints:**
+- `GET /api/verify/asset?tokenId=X` - Verify asset NFTs
+- `GET /api/verify/document?cid=X` - Verify IPFS documents
+- `GET /api/verify/transaction?hash=X` - Verify blockchain transactions
+- `GET /api/verify/credential?did=X` - Verify W3C credentials
+
+**Features:**
+- ✅ No login required (truly public)
+- ✅ Block explorer links (Etherscan, PolygonScan)
+- ✅ IPFS gateway links
+- ✅ Transaction details (block, timestamp, gas)
+- ✅ Beautiful success/failure UI
+
+**Files Added:**
+- `src/app/verify/page.tsx` - Public verification UI
+- `src/app/api/verify/*.ts` - 4 verification endpoints
+
+---
+
+#### E6: Document Upload Proof Receipt (2026-09-25)
+
+**What Changed:**
+- Document upload returns visible "proof receipt" with verification details
+- Shows IPFS CID, content hash, metadata hash, tx hash
+- Auto-generates verification URL
+- Beautiful receipt UI component
+
+**Features:**
+- ✅ IPFS CID with clickable gateway link
+- ✅ SHA-256 content hash
+- ✅ Metadata hash for tamper detection
+- ✅ Blockchain proof (tx hash, block number)
+- ✅ Auto-generated verification URL
+
+**Files Added:**
+- `src/app/api/upload/document/route.ts`
+- `src/components/DocumentUploadWithReceipt.tsx`
+
+---
+
+### Added - Part D: Repository Housekeeping
+
 #### D6: Role Standardization (2026-09-25)
 
 **What Changed:**
