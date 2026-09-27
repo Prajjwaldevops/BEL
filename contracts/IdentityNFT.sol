@@ -35,6 +35,7 @@ contract IdentityNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausab
         string department;
         string criminalStatus;   // CLEARED / FLAGGED
         uint256 registeredAt;
+        bytes32 metadataHash;    // keccak256 hash of immutable metadata for tamper detection
     }
 
     mapping(uint256 => UserIdentity) public userIdentities;
@@ -81,6 +82,14 @@ contract IdentityNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausab
 
         uint256 tokenId = _nextTokenId++;
 
+        // Compute metadata hash for tamper detection
+        bytes32 metadataHash = keccak256(abi.encodePacked(
+            _photoHash,
+            _role,
+            _department,
+            _criminalStatus
+        ));
+
         _safeMint(_wallet, tokenId);
         _setTokenURI(tokenId, _tokenURI);
 
@@ -90,7 +99,8 @@ contract IdentityNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausab
             role: _role,
             department: _department,
             criminalStatus: _criminalStatus,
-            registeredAt: block.timestamp
+            registeredAt: block.timestamp,
+            metadataHash: metadataHash
         });
 
         walletToTokenId[_wallet] = tokenId;
@@ -99,6 +109,29 @@ contract IdentityNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausab
         emit IdentityMinted(tokenId, _wallet, _role, _department, _photoHash);
 
         return tokenId;
+    }
+
+    /**
+     * @dev Verify metadata hash to detect tampering.
+     *      Returns true if the provided data matches the on-chain hash.
+     */
+    function verifyMetadataHash(
+        uint256 _tokenId,
+        string memory _photoHash,
+        string memory _role,
+        string memory _department,
+        string memory _criminalStatus
+    ) external view returns (bool) {
+        require(_ownerOf(_tokenId) != address(0), "Token does not exist");
+        
+        bytes32 computedHash = keccak256(abi.encodePacked(
+            _photoHash,
+            _role,
+            _department,
+            _criminalStatus
+        ));
+        
+        return computedHash == userIdentities[_tokenId].metadataHash;
     }
 
     /**
