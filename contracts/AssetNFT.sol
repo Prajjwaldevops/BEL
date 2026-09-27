@@ -114,8 +114,8 @@ contract AssetNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausable 
         bool isAuthorized = 
             hasRole(MANAGER_ROLE, msg.sender) ||
             hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
-            roleManager.hasRole(msg.sender, roleManager.ROLE_ADMIN()) ||
-            roleManager.hasRole(msg.sender, roleManager.ROLE_MANAGER()) ||
+            roleManager.hasRole(msg.sender, "ADMIN") ||
+            roleManager.hasRole(msg.sender, "ALTER") ||
             msg.sender == _ownerOf(tokenId) ||
             _isAuthorized(_ownerOf(tokenId), msg.sender, tokenId);
         
@@ -138,8 +138,24 @@ contract AssetNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausable 
         nonReentrant
         whenNotPaused
     {
-        transferFrom(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "Transfer to non ERC721Receiver");
+        // Use the same authorization logic as transferFrom
+        require(to != address(0), "Transfer to zero address");
+        
+        bool isAuthorized = 
+            hasRole(MANAGER_ROLE, msg.sender) ||
+            hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
+            roleManager.hasRole(msg.sender, "ADMIN") ||
+            roleManager.hasRole(msg.sender, "ALTER") ||
+            msg.sender == _ownerOf(tokenId) ||
+            _isAuthorized(_ownerOf(tokenId), msg.sender, tokenId);
+        
+        require(isAuthorized, "Not authorized to transfer this asset");
+        
+        super.safeTransferFrom(from, to, tokenId, data);
+        assetStatuses[tokenId] = AssetStatus.TRANSFERRED;
+        
+        emit AssetStatusChanged(tokenId, AssetStatus.TRANSFERRED);
+        emit AssetTransferApproved(tokenId, from, to, msg.sender);
     }
 
     /**
