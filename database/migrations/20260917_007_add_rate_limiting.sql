@@ -158,14 +158,14 @@ BEGIN
     v_window_start := NOW() - (v_config.window_minutes || ' minutes')::INTERVAL;
     
     -- Check for active lockout
-    SELECT MAX(lockout_until) INTO v_lockout_until
-    FROM login_attempts
+    SELECT MAX(la.lockout_until) INTO v_lockout_until
+    FROM login_attempts la
     WHERE (
-        (p_username IS NOT NULL AND username = p_username)
-        OR (p_email IS NOT NULL AND email = p_email)
-        OR (p_ip_address IS NOT NULL AND ip_address = p_ip_address)
+        (p_username IS NOT NULL AND la.username = p_username)
+        OR (p_email IS NOT NULL AND la.email = p_email)
+        OR (p_ip_address IS NOT NULL AND la.ip_address = p_ip_address)
     )
-    AND lockout_until > NOW();
+    AND la.lockout_until > NOW();
     
     -- If currently locked out
     IF v_lockout_until IS NOT NULL THEN
