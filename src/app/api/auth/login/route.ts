@@ -1,14 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimitMiddleware, getUserAgentFromRequest } from '@/middleware/rate-limit';
 import { recordLoginAttempt, getClientIP } from '@/lib/rate-limit';
+import crypto from 'crypto';
 
-// Simple JWT-like token generation (for demo/hackathon — use proper JWT library in production)
+/**
+ * Generate a proper HMAC-SHA256 signed JWT.
+ * Uses JWT_SECRET from environment. Fails explicitly if not configured in production.
+ */
 function generateToken(payload: Record<string, unknown>): string {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = btoa(JSON.stringify({ ...payload, iat: Date.now(), exp: Date.now() + 8 * 60 * 60 * 1000 }));
-  const signature = btoa(JSON.stringify({ sig: 'bel-sentinel-signed' }));
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is not set. Cannot generate tokens in production.');
+  }
+  const signingKey = secret || 'bel-sentinel-dev-secret-change-in-production';
+
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 8 * 60 * 60, // 8 hours
+  })).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', signingKey)
+    .update(`${header}.${body}`)
+    .digest('base64url');
   return `${header}.${body}.${signature}`;
 }
+
+// ===== HARDCODED DEMO BYPASS USERS =====
+// These users bypass Supabase entirely for hackathon demo purposes
+const DEMO_BYPASS_USERS: Record<string, {
+  password: string;
+  user: {
+    id: string;
+    username: string;
+    full_name: string;
+    display_name: string;
+    email: string;
+    department: string;
+    role: string;
+    wallet_address: string;
+    photo_url: string | null;
+    nft_token_id: string | null;
+    is_admin: boolean;
+    clearance: string;
+    access_code: string;
+  };
+}> = {
+  admin: {
+    password: 'admin123',
+    user: {
+      id: 'demo-admin-001',
+      username: 'admin',
+      full_name: 'Commander Arjun Vikram',
+      display_name: 'Cmdr. Vikram',
+      email: 'admin@bel-sentinel.gov.in',
+      department: 'Command & Control',
+      role: 'ADMIN',
+      wallet_address: '0xADM1N000000000000000000000000000000000001',
+      photo_url: null,
+      nft_token_id: '#0001',
+      is_admin: true,
+      clearance: 'TOP SECRET // SCI',
+      access_code: 'ALPHA-7',
+    },
+  },
+  sih: {
+    password: 'admin123',
+    user: {
+      id: 'demo-sih-002',
+      username: 'sih',
+      full_name: 'Dr. Priya Sharma — SIH Judge',
+      display_name: 'Dr. Sharma (SIH)',
+      email: 'sih@bel-sentinel.gov.in',
+      department: 'Security Operations',
+      role: 'ADMIN',
+      wallet_address: '0x51H00000000000000000000000000000000000002',
+      photo_url: null,
+      nft_token_id: '#0002',
+      is_admin: true,
+      clearance: 'TOP SECRET // SCI',
+      access_code: 'SENTINEL-SIH',
+    },
+  },
+};
 
 export async function POST(request: NextRequest) {
   const ipAddress = await getClientIP();
@@ -20,6 +95,55 @@ export async function POST(request: NextRequest) {
     if (!username || !password) {
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
     }
+
+    // ===== DEMO BYPASS CHECK =====
+    // admin / sih with password admin123 bypass ALL checks (Supabase, wallet, rate limit)
+    const demoEntry = DEMO_BYPASS_USERS[username.toLowerCase()];
+    if (demoEntry && password === demoEntry.password) {
+      console.log(`🔓 DEMO BYPASS: User '${username}' authenticated via hardcoded bypass`);
+
+      const token = generateToken({
+        userId: demoEntry.user.id,
+        username: demoEntry.user.username,
+        role: demoEntry.user.role,
+        department: demoEntry.user.department,
+        isAdmin: true,
+        isDemoBypass: true,
+      });
+
+      const response = NextResponse.json({
+        token,
+        user: {
+          id: demoEntry.user.id,
+          username: demoEntry.user.username,
+          fullName: demoEntry.user.full_name,
+          displayName: demoEntry.user.display_name,
+          email: demoEntry.user.email,
+          department: demoEntry.user.department,
+          role: demoEntry.user.role,
+          walletAddress: demoEntry.user.wallet_address,
+          photoUrl: demoEntry.user.photo_url,
+          nftTokenId: demoEntry.user.nft_token_id,
+          isAdmin: demoEntry.user.is_admin,
+          accessCode: demoEntry.user.access_code,
+          clearance: demoEntry.user.clearance,
+        },
+      });
+
+      response.cookies.set({
+        name: 'bel-auth-token',
+        value: token,
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 8 * 60 * 60,
+      });
+
+      return response;
+    }
+
+    // ===== NORMAL AUTH FLOW (Supabase) =====
 
     // Test users can bypass wallet requirement
     const TEST_USERS_BYPASS = ['admin', 'sih'];
@@ -134,27 +258,10 @@ export async function POST(request: NextRequest) {
         const verifyResult = await verifyRes.json();
         passwordValid = verifyResult === true;
       } else {
-        // RPC function might not exist - try direct comparison (FALLBACK ONLY - NOT SECURE)
-        console.warn('verify_password RPC failed, using fallback');
-        
-        // Check if password_hash exists and matches
-        if (user.password_hash) {
-          // For development: allow plain text comparison if hash not set
-          // In production: this should NEVER be used
-          if (user.password_hash === password) {
-            console.warn('⚠️ INSECURE: Plain text password match - UPDATE DATABASE WITH HASHED PASSWORDS');
-            passwordValid = true;
-          }
-        }
+        console.warn('verify_password RPC failed, password rejected');
       }
     } catch (verifyError) {
       console.error('Password verification error:', verifyError);
-      
-      // Last resort fallback for development
-      if (process.env.NODE_ENV === 'development' && user.password_hash === password) {
-        console.warn('⚠️ DEVELOPMENT MODE: Plain text password allowed');
-        passwordValid = true;
-      }
     }
 
     if (!passwordValid) {

@@ -1,100 +1,254 @@
+/**
+ * BEL SENTINEL — Document Verification API
+ *
+ * GET  /api/verify/document?id=xxx    → verify by document UUID
+ * GET  /api/verify/document?hash=0x.. → verify by content hash
+ * POST /api/verify/document            → verify by file upload (multipart)
+ *                                      → verify by JSON body { documentId, contentHash }
+ *
+ * Returns real verification result cross-referencing DB + blockchain.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { ethers } from 'ethers';
+import {
+  verifyByDocumentId,
+  verifyByFileHash,
+} from '@/lib/services/verification-service';
+import { recordVerification, getDocumentById } from '@/lib/services/document-service';
+
+// ===== GET: Verify by query parameters =====
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const cid = searchParams.get('cid');
+    const id = searchParams.get('id');
+    const hash = searchParams.get('hash');
+    const cid = searchParams.get('cid'); // Legacy IPFS CID support
 
-    if (!cid) {
+    if (!id && !hash && !cid) {
       return NextResponse.json(
-        { error: 'IPFS CID is required' },
+        { error: 'Provide id, hash, or cid query parameter' },
         { status: 400 }
       );
     }
 
-    const supabase = await createClient();
+    // Verify by document ID
+    if (id) {
+      const result = await verifyByDocumentId(id);
 
-    // Query document from database
-    const { data: document, error } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('ipfs_hash', cid)
-      .single();
-
-    if (error || !document) {
-      return NextResponse.json({
-        verified: false,
-        type: 'document',
-        data: { id: cid },
-        error: 'Document not found in registry',
-      });
-    }
-
-    // Query blockchain transaction
-    const { data: txData } = await supabase
-      .from('blockchain_transactions')
-      .select('*')
-      .eq('resource_type', 'DOCUMENT')
-      .eq('resource_id', document.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    // Get uploader profile
-    const { data: uploader } = await supabase
-      .from('profiles')
-      .select('username, full_name')
-      .eq('id', document.uploaded_by)
-      .single();
-
-    // Try to get on-chain data
-    let onChainData;
-    try {
-      if (process.env.NEXT_PUBLIC_RPC_URL && txData?.tx_hash) {
-        const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL);
-        const tx = await provider.getTransaction(txData.tx_hash);
-        const receipt = await provider.getTransactionReceipt(txData.tx_hash);
-        
-        if (tx && receipt) {
-          const block = await provider.getBlock(receipt.blockNumber);
-          
-          onChainData = {
-            txHash: txData.tx_hash,
-            blockNumber: receipt.blockNumber,
-            timestamp: block ? new Date(block.timestamp * 1000).toISOString() : new Date().toISOString(),
-            gasUsed: receipt.gasUsed.toString(),
-            network: process.env.NEXT_PUBLIC_CHAIN_ID === '31337' ? 'localhost' : 'sepolia',
-          };
-        }
+      if (result.document) {
+        await recordVerification({
+          documentId: result.document.id,
+          method: 'DOCUMENT_ID',
+          result: result.status,
+          ipAddress: request.headers.get('x-forwarded-for') || undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
+        });
       }
-    } catch (err) {
-      console.error('On-chain verification error:', err);
+
+      return NextResponse.json(result);
     }
 
-    return NextResponse.json({
-      verified: true,
-      type: 'document',
-      data: {
-        id: cid,
-        name: document.name,
-        owner: uploader?.full_name || uploader?.username || 'Unknown',
-        status: 'VERIFIED',
-        txHash: txData?.tx_hash,
-        timestamp: document.created_at,
-        ipfsHash: document.ipfs_hash,
-        metadataHash: document.metadata_hash,
-      },
-      onChainData,
-    });
+    // Verify by content hash
+    if (hash) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+      }
+
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/documents?content_hash=eq.${hash}&select=*&order=version.desc&limit=1`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        }
+      );
+
+      const docs = await res.json();
+      if (!Array.isArray(docs) || docs.length === 0) {
+        return NextResponse.json({
+          status: 'NOT_FOUND',
+          document: null,
+          nft: null,
+          hashes: { contentHash: hash, hashMatch: false, onChainHashMatch: false },
+          blockchain: null,
+          verifiedAt: new Date().toISOString(),
+          message: 'No document found matching this content hash',
+        });
+      }
+
+      const result = await verifyByDocumentId(docs[0].id);
+
+      await recordVerification({
+        documentId: docs[0].id,
+        method: 'FILE_HASH',
+        providedHash: hash,
+        result: result.status,
+      });
+
+      return NextResponse.json(result);
+    }
+
+    // Legacy CID lookup — search by ipfs_hash field
+    if (cid) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+      }
+
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/documents?ipfs_hash=eq.${cid}&select=*&limit=1`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        }
+      );
+
+      const docs = await res.json();
+      if (!Array.isArray(docs) || docs.length === 0) {
+        return NextResponse.json({
+          verified: false,
+          type: 'document',
+          data: { id: cid },
+          error: 'Document not found in registry',
+        });
+      }
+
+      const result = await verifyByDocumentId(docs[0].id);
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 
   } catch (error) {
-    console.error('Document verification error:', error);
+    console.error('Verification API error:', error);
     return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : 'Verification failed'
-      },
+      { error: error instanceof Error ? error.message : 'Verification failed' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== POST: Verify by file upload or JSON body =====
+
+export async function POST(request: NextRequest) {
+  try {
+    const contentType = request.headers.get('content-type') || '';
+
+    // ---- File upload verification ----
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('file') as File;
+
+      if (!file) {
+        return NextResponse.json({ error: 'File is required' }, { status: 400 });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      if (buffer.length === 0) {
+        return NextResponse.json({ error: 'File is empty' }, { status: 400 });
+      }
+
+      const result = await verifyByFileHash(buffer);
+
+      if (result.document) {
+        await recordVerification({
+          documentId: result.document.id,
+          method: 'FILE_HASH',
+          providedHash: result.hashes?.providedHash,
+          result: result.status,
+          ipAddress: request.headers.get('x-forwarded-for') || undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
+        });
+      }
+
+      return NextResponse.json(result);
+    }
+
+    // ---- JSON body verification ----
+    const body = await request.json();
+    const { documentId, contentHash } = body;
+
+    if (!documentId && !contentHash) {
+      return NextResponse.json(
+        { error: 'Provide documentId or contentHash' },
+        { status: 400 }
+      );
+    }
+
+    if (documentId) {
+      const result = await verifyByDocumentId(documentId);
+
+      if (result.document) {
+        await recordVerification({
+          documentId: result.document.id,
+          method: 'DOCUMENT_ID',
+          result: result.status,
+          ipAddress: request.headers.get('x-forwarded-for') || undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
+        });
+      }
+
+      return NextResponse.json(result);
+    }
+
+    if (contentHash) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+      }
+
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/documents?content_hash=eq.${contentHash}&select=*&order=version.desc&limit=1`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        }
+      );
+
+      const docs = await res.json();
+      if (!Array.isArray(docs) || docs.length === 0) {
+        return NextResponse.json({
+          status: 'NOT_FOUND',
+          document: null,
+          hashes: { contentHash, hashMatch: false },
+          verifiedAt: new Date().toISOString(),
+          message: 'No document found matching this content hash',
+        });
+      }
+
+      const result = await verifyByDocumentId(docs[0].id);
+
+      await recordVerification({
+        documentId: docs[0].id,
+        method: 'FILE_HASH',
+        providedHash: contentHash,
+        result: result.status,
+      });
+
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+
+  } catch (error) {
+    console.error('Verification API error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Verification failed' },
       { status: 500 }
     );
   }

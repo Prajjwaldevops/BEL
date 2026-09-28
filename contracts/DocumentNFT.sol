@@ -245,6 +245,86 @@ contract DocumentNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, Pausab
         return super._update(to, tokenId, auth);
     }
 
+    // ===== Versioning =====
+
+    // Old token => New token (supersession chain)
+    mapping(uint256 => uint256) public supersededBy;
+
+    event DocumentSuperseded(
+        uint256 indexed oldTokenId,
+        uint256 indexed newTokenId
+    );
+
+    /**
+     * @dev Update the metadata hash and token URI for an existing document.
+     *      Only the MINTER_ROLE may update.
+     */
+    function updateDocument(
+        uint256 tokenId,
+        bytes32 _newMetadataHash,
+        string memory _newTokenURI
+    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused {
+        require(_ownerOf(tokenId) != address(0), "Document does not exist");
+        require(!documents[tokenId].revoked, "Cannot update revoked document");
+        require(_newMetadataHash != bytes32(0), "Metadata hash cannot be zero");
+        require(bytes(_newTokenURI).length > 0, "Token URI cannot be empty");
+
+        documents[tokenId].metadataHash = _newMetadataHash;
+        _setTokenURI(tokenId, _newTokenURI);
+
+        emit DocumentUpdated(tokenId, _newMetadataHash, _newTokenURI);
+    }
+
+    /**
+     * @dev Supersede an existing document with a new version.
+     *      Mints a new token and marks the old one as superseded.
+     *      The old token remains on-chain for historical reference.
+     */
+    function supersedeDocument(
+        uint256 oldTokenId,
+        address to,
+        string memory _tokenURI,
+        bytes32 _contentHash,
+        bytes32 _metadataHash,
+        bool _transferable,
+        uint64 _expiresAt
+    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused returns (uint256) {
+        require(_ownerOf(oldTokenId) != address(0), "Original document does not exist");
+        require(!documents[oldTokenId].revoked, "Cannot supersede revoked document");
+        require(supersededBy[oldTokenId] == 0, "Document already superseded");
+        require(to != address(0), "Invalid recipient address");
+        require(_contentHash != bytes32(0), "Content hash cannot be zero");
+        require(_metadataHash != bytes32(0), "Metadata hash cannot be zero");
+        require(bytes(_tokenURI).length > 0, "Token URI cannot be empty");
+        require(hashToTokenId[_contentHash] == 0, "Document with this hash already minted");
+
+        // Mint new version
+        uint256 newTokenId = _nextTokenId++;
+
+        _safeMint(to, newTokenId);
+        _setTokenURI(newTokenId, _tokenURI);
+
+        documents[newTokenId] = DocumentRecord({
+            contentHash: _contentHash,
+            metadataHash: _metadataHash,
+            issuer: msg.sender,
+            issuedAt: uint64(block.timestamp),
+            expiresAt: _expiresAt,
+            revoked: false,
+            transferable: _transferable
+        });
+
+        hashToTokenId[_contentHash] = newTokenId;
+
+        // Link old → new
+        supersededBy[oldTokenId] = newTokenId;
+
+        emit DocumentMinted(newTokenId, to, msg.sender, _contentHash, _metadataHash, _transferable);
+        emit DocumentSuperseded(oldTokenId, newTokenId);
+
+        return newTokenId;
+    }
+
     // ===== Admin Functions =====
 
     function pause() external onlyRole(PAUSER_ROLE) {

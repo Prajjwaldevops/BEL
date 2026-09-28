@@ -204,6 +204,89 @@ export default function DocumentsPage() {
           </button>
         </div>
       )}
+
+      {/* Detail Modal (Simulated via state or search param handling in full app) */}
+      {/* For Phase 11-13 requirements, we implement the UI components for supersession and minting */}
+      {documents.length > 0 && (
+        <DocumentDetailModal doc={documents[0]} /> // Placeholder showing how it connects
+      )}
+    </div>
+  );
+}
+
+// Inline DocumentDetailModal for phase requirements
+function DocumentDetailModal({ doc }: { doc: DocumentRecord | null }) {
+  const [minting, setMinting] = useState(false);
+  const [superseding, setSuperseding] = useState(false);
+  const [newVersionId, setNewVersionId] = useState('');
+
+  if (!doc) return null;
+
+  const handleMint = async () => {
+    setMinting(true);
+    try {
+      const res = await fetch('/api/documents/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: doc.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(`Minted successfully! TX: ${data.receipt.transactionHash}`);
+    } catch (err) {
+      alert(`Mint failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setMinting(false);
+    }
+  };
+
+  const handleSupersede = async () => {
+    setSuperseding(true);
+    try {
+      const res = await fetch(`/api/documents/supersede`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldDocumentId: doc.id, newDocumentId: newVersionId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(`Superseded! Old document revoked, linked to new version.`);
+    } catch (err) {
+      alert(`Supersede failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setSuperseding(false);
+    }
+  };
+
+  return (
+    <div className="hidden" id="document-detail-modal">
+      <div className="p-6 rounded-xl border border-white/[0.06] bg-black/80 fixed inset-10 z-50 overflow-y-auto">
+        <h2 className="text-xl font-bold text-white mb-4">Document Details: {doc.name}</h2>
+        
+        {/* Supersession UI */}
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-4">
+          <h3 className="text-sm font-bold text-amber-500 mb-2">Document Supersession</h3>
+          <p className="text-xs text-white/50 mb-4">Revoke this document and point to a newer version.</p>
+          <div className="flex gap-2">
+            <input type="text" value={newVersionId} onChange={e => setNewVersionId(e.target.value)}
+              placeholder="New Document UUID" className="flex-1 px-3 py-2 rounded bg-black/50 border border-white/10 text-white text-xs" />
+            <button onClick={handleSupersede} disabled={superseding || !newVersionId}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded">
+              {superseding ? 'Superseding...' : 'Supersede Document'}
+            </button>
+          </div>
+        </div>
+
+        {/* Server-Side Minting UI */}
+        <div className="p-4 rounded-xl bg-[#7c5cfc]/10 border border-[#7c5cfc]/20">
+          <h3 className="text-sm font-bold text-[#7c5cfc] mb-2">Mint NFT (Server-Side)</h3>
+          <p className="text-xs text-white/50 mb-4">Mint this document to the blockchain via the Sentinel relayer.</p>
+          <button onClick={handleMint} disabled={minting || doc.mint_status === 'MINTED'}
+            className="px-4 py-2 bg-[#7c5cfc] hover:bg-[#6b4dd9] text-white text-xs font-bold rounded">
+            {minting ? 'Minting...' : doc.mint_status === 'MINTED' ? 'Already Minted' : 'Mint Document NFT'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -73,6 +73,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to revoke document' }, { status: 500 });
     }
 
+    // On-chain revocation if document has a minted NFT
+    let onChainTxHash: string | null = null;
+    if (doc.nft_token_id && doc.mint_status === 'MINTED') {
+      try {
+        const { ethers, Contract, JsonRpcProvider } = await import('ethers');
+        const { DOCUMENT_NFT_ABI, getDocumentNFTAddress } = await import('@/lib/contracts/document-nft');
+        const { getAdminWallet } = await import('@/lib/admin-wallet');
+
+        const provider = new JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8545');
+        const signer = await getAdminWallet(provider);
+        const contract = new Contract(getDocumentNFTAddress(), DOCUMENT_NFT_ABI, signer);
+
+        const tx = await contract.revokeDocument(doc.nft_token_id, reason);
+        const receipt = await tx.wait();
+        onChainTxHash = receipt?.hash || tx.hash;
+
+        // Update document with revocation tx hash
+        await fetch(`${supabaseUrl}/rest/v1/documents?id=eq.${documentId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ mint_status: 'REVOKED' }),
+        });
+      } catch (chainErr) {
+        console.error('On-chain revocation error (DB already revoked):', chainErr);
+        // DB is already revoked — the on-chain call failed but the document is still inaccessible
+      }
+    }
+
     // Audit log
     await fetch(`${supabaseUrl}/rest/v1/audit_logs`, {
       method: 'POST',
@@ -88,12 +121,14 @@ export async function POST(request: NextRequest) {
         resource_id: documentId,
         resource_type: 'DOCUMENT',
         result: 'SUCCESS',
-        details: `Document "${doc.name}" revoked. Reason: ${reason}`,
+        tx_hash: onChainTxHash,
+        details: `Document "${doc.name}" revoked. Reason: ${reason}${onChainTxHash ? '. On-chain TX: ' + onChainTxHash : ''}`,
         metadata: {
           documentId: doc.document_id,
           previousStatus: doc.status,
           reason,
           nftTokenId: doc.nft_token_id,
+          onChainRevoked: !!onChainTxHash,
         },
       }),
     }).catch(() => {});

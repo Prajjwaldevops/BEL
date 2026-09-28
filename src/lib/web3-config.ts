@@ -68,6 +68,7 @@ export const config = createConfig({
 
 // Contract addresses (from deployment or environment)
 export const CONTRACTS = {
+  DocumentNFT: (process.env.NEXT_PUBLIC_DOCUMENT_NFT_ADDRESS || '') as `0x${string}`,
   IdentityNFT: (process.env.NEXT_PUBLIC_IDENTITY_NFT_ADDRESS || '') as `0x${string}`,
   AssetNFT: (process.env.NEXT_PUBLIC_ASSET_NFT_ADDRESS || '') as `0x${string}`,
   AuditRegistry: (process.env.NEXT_PUBLIC_AUDIT_REGISTRY_ADDRESS || '') as `0x${string}`,

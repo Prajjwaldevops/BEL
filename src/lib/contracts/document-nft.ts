@@ -145,6 +145,39 @@ export const DOCUMENT_NFT_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "_newMetadataHash", type: "bytes32" },
+      { name: "_newTokenURI", type: "string" },
+    ],
+    name: "updateDocument",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "oldTokenId", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "_tokenURI", type: "string" },
+      { name: "_contentHash", type: "bytes32" },
+      { name: "_metadataHash", type: "bytes32" },
+      { name: "_transferable", type: "bool" },
+      { name: "_expiresAt", type: "uint64" },
+    ],
+    name: "supersedeDocument",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "supersededBy",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
   // Events
   {
     anonymous: false,
@@ -177,6 +210,24 @@ export const DOCUMENT_NFT_ABI = [
       { indexed: true, name: "to", type: "address" },
     ],
     name: "DocumentTransferred",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, name: "newMetadataHash", type: "bytes32" },
+      { indexed: false, name: "newTokenURI", type: "string" },
+    ],
+    name: "DocumentUpdated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "oldTokenId", type: "uint256" },
+      { indexed: true, name: "newTokenId", type: "uint256" },
+    ],
+    name: "DocumentSuperseded",
     type: "event",
   },
 ] as const;

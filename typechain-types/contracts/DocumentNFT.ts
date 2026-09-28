@@ -84,12 +84,15 @@ export interface DocumentNFTInterface extends Interface {
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
       | "setApprovalForAll"
+      | "supersedeDocument"
+      | "supersededBy"
       | "supportsInterface"
       | "symbol"
       | "tokenURI"
       | "totalMinted"
       | "transferFrom"
       | "unpause"
+      | "updateDocument"
       | "verifyDocument"
   ): FunctionFragment;
 
@@ -102,6 +105,7 @@ export interface DocumentNFTInterface extends Interface {
       | "ContractUnpaused"
       | "DocumentMinted"
       | "DocumentRevoked"
+      | "DocumentSuperseded"
       | "DocumentTransferred"
       | "DocumentUpdated"
       | "MetadataUpdate"
@@ -217,6 +221,22 @@ export interface DocumentNFTInterface extends Interface {
     values: [AddressLike, boolean]
   ): string;
   encodeFunctionData(
+    functionFragment: "supersedeDocument",
+    values: [
+      BigNumberish,
+      AddressLike,
+      string,
+      BytesLike,
+      BytesLike,
+      boolean,
+      BigNumberish
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "supersededBy",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
@@ -234,6 +254,10 @@ export interface DocumentNFTInterface extends Interface {
     values: [AddressLike, AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "updateDocument",
+    values: [BigNumberish, BytesLike, string]
+  ): string;
   encodeFunctionData(
     functionFragment: "verifyDocument",
     values: [BigNumberish, BytesLike]
@@ -322,6 +346,14 @@ export interface DocumentNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "supersedeDocument",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "supersededBy",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
@@ -336,6 +368,10 @@ export interface DocumentNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "updateDocument",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "verifyDocument",
     data: BytesLike
@@ -468,6 +504,19 @@ export namespace DocumentRevokedEvent {
     tokenId: bigint;
     revokedBy: string;
     reason: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DocumentSupersededEvent {
+  export type InputTuple = [oldTokenId: BigNumberish, newTokenId: BigNumberish];
+  export type OutputTuple = [oldTokenId: bigint, newTokenId: bigint];
+  export interface OutputObject {
+    oldTokenId: bigint;
+    newTokenId: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -812,6 +861,22 @@ export interface DocumentNFT extends BaseContract {
     "nonpayable"
   >;
 
+  supersedeDocument: TypedContractMethod<
+    [
+      oldTokenId: BigNumberish,
+      to: AddressLike,
+      _tokenURI: string,
+      _contentHash: BytesLike,
+      _metadataHash: BytesLike,
+      _transferable: boolean,
+      _expiresAt: BigNumberish
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+
+  supersededBy: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -831,6 +896,12 @@ export interface DocumentNFT extends BaseContract {
   >;
 
   unpause: TypedContractMethod<[], [void], "nonpayable">;
+
+  updateDocument: TypedContractMethod<
+    [tokenId: BigNumberish, _newMetadataHash: BytesLike, _newTokenURI: string],
+    [void],
+    "nonpayable"
+  >;
 
   verifyDocument: TypedContractMethod<
     [tokenId: BigNumberish, _contentHash: BytesLike],
@@ -1005,6 +1076,24 @@ export interface DocumentNFT extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "supersedeDocument"
+  ): TypedContractMethod<
+    [
+      oldTokenId: BigNumberish,
+      to: AddressLike,
+      _tokenURI: string,
+      _contentHash: BytesLike,
+      _metadataHash: BytesLike,
+      _transferable: boolean,
+      _expiresAt: BigNumberish
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "supersededBy"
+  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+  getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
@@ -1026,6 +1115,13 @@ export interface DocumentNFT extends BaseContract {
   getFunction(
     nameOrSignature: "unpause"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "updateDocument"
+  ): TypedContractMethod<
+    [tokenId: BigNumberish, _newMetadataHash: BytesLike, _newTokenURI: string],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "verifyDocument"
   ): TypedContractMethod<
@@ -1082,6 +1178,13 @@ export interface DocumentNFT extends BaseContract {
     DocumentRevokedEvent.InputTuple,
     DocumentRevokedEvent.OutputTuple,
     DocumentRevokedEvent.OutputObject
+  >;
+  getEvent(
+    key: "DocumentSuperseded"
+  ): TypedContractEvent<
+    DocumentSupersededEvent.InputTuple,
+    DocumentSupersededEvent.OutputTuple,
+    DocumentSupersededEvent.OutputObject
   >;
   getEvent(
     key: "DocumentTransferred"
@@ -1223,6 +1326,17 @@ export interface DocumentNFT extends BaseContract {
       DocumentRevokedEvent.InputTuple,
       DocumentRevokedEvent.OutputTuple,
       DocumentRevokedEvent.OutputObject
+    >;
+
+    "DocumentSuperseded(uint256,uint256)": TypedContractEvent<
+      DocumentSupersededEvent.InputTuple,
+      DocumentSupersededEvent.OutputTuple,
+      DocumentSupersededEvent.OutputObject
+    >;
+    DocumentSuperseded: TypedContractEvent<
+      DocumentSupersededEvent.InputTuple,
+      DocumentSupersededEvent.OutputTuple,
+      DocumentSupersededEvent.OutputObject
     >;
 
     "DocumentTransferred(uint256,address,address)": TypedContractEvent<
