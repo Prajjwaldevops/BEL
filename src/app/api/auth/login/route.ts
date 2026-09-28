@@ -21,7 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
     }
 
-    if (!walletAddress) {
+    // Test users can bypass wallet requirement
+    const TEST_USERS_BYPASS = ['admin', 'sih'];
+    const bypassWalletCheck = TEST_USERS_BYPASS.includes(username.toLowerCase());
+
+    if (!walletAddress && !bypassWalletCheck) {
       return NextResponse.json({ error: 'HARDWARE KEY MANDATORY FOR ACCESS' }, { status: 403 });
     }
 
@@ -89,11 +93,9 @@ export async function POST(request: NextRequest) {
     const user = users[0];
 
     // Step 2: Verify wallet FIRST (before password check)
-    // Bypass wallet check for test users: admin and sih
-    const TEST_USERS_BYPASS = ['admin', 'sih'];
-    const bypassWalletCheck = TEST_USERS_BYPASS.includes(username.toLowerCase());
+    // bypassWalletCheck already defined above
     
-    if (user.wallet_address && !bypassWalletCheck) {
+    if (user.wallet_address && walletAddress && !bypassWalletCheck) {
       // Normal wallet verification for production users
       if (walletAddress.toLowerCase() !== user.wallet_address.toLowerCase()) {
         await recordLoginAttempt({
