@@ -3,6 +3,7 @@
 /* eslint-disable */
 export { AssetNFT__factory } from "./AssetNFT__factory";
 export { AuditRegistry__factory } from "./AuditRegistry__factory";
+export { DocumentNFT__factory } from "./DocumentNFT__factory";
 export { IdentityNFT__factory } from "./IdentityNFT__factory";
 export { IdentityRecovery__factory } from "./IdentityRecovery__factory";
 export { IdentityRegistry__factory } from "./IdentityRegistry__factory";

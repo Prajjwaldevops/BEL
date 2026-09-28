@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Fingerprint, Users, Boxes, GitBranch,
   FileText, HardDrive, ArrowRightLeft, ShieldAlert,
   Settings, LogOut, Crosshair, Terminal, Brain,
-  Activity, Menu, X, Zap
+  Activity, Menu, X, Zap, Coins, ShieldCheck
 } from 'lucide-react';
 
 interface SessionUser {
@@ -39,8 +39,10 @@ const allNavItems = [
   { label: 'Personnel', icon: Users, href: '/dashboard/users', roles: ['ADMIN'] },
   { label: 'Assets', icon: Boxes, href: '/dashboard/assets', roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'] },
   { label: 'Operations', icon: GitBranch, href: '/dashboard/lifecycle', roles: ['ADMIN', 'ALTER'] },
+  { label: 'Doc Vault', icon: FileText, href: '/dashboard/documents', roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'] },
+  { label: 'NFT Gallery', icon: Coins, href: '/dashboard/nfts', roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'] },
+  { label: 'Verify', icon: ShieldCheck, href: '/dashboard/verification', roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'] },
   { label: 'AI Analytics', icon: Brain, href: '/dashboard/ai-analysis', roles: ['ADMIN'] },
-  { label: 'Archives', icon: FileText, href: '/dashboard/documents', roles: ['ADMIN', 'ALTER', 'DEBUGGER'] },
   { label: 'IPFS Storage', icon: HardDrive, href: '/dashboard/ipfs', roles: ['ADMIN'] },
   { label: 'TX Logs', icon: ArrowRightLeft, href: '/dashboard/transactions', roles: ['ADMIN'] },
   { label: 'Threat Intel', icon: ShieldAlert, href: '/dashboard/security', roles: ['ADMIN'] },

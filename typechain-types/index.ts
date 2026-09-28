@@ -46,6 +46,8 @@ export type { AssetNFT } from "./contracts/AssetNFT";
 export { AssetNFT__factory } from "./factories/contracts/AssetNFT__factory";
 export type { AuditRegistry } from "./contracts/AuditRegistry";
 export { AuditRegistry__factory } from "./factories/contracts/AuditRegistry__factory";
+export type { DocumentNFT } from "./contracts/DocumentNFT";
+export { DocumentNFT__factory } from "./factories/contracts/DocumentNFT__factory";
 export type { IdentityNFT } from "./contracts/IdentityNFT";
 export { IdentityNFT__factory } from "./factories/contracts/IdentityNFT__factory";
 export type { IdentityRecovery } from "./contracts/IdentityRecovery";

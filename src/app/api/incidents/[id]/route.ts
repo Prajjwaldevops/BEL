@@ -17,10 +17,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -32,7 +33,7 @@ export async function GET(
       );
     }
     
-    const incidentId = params.id;
+    const incidentId = id;
     
     const incident = await getIncidentById(incidentId);
     
@@ -64,10 +65,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -96,7 +98,7 @@ export async function PATCH(
     const body = await request.json();
     const { status, assignedTo, note } = body;
     
-    const incidentId = params.id;
+    const incidentId = id;
     
     // Update status if provided
     if (status) {

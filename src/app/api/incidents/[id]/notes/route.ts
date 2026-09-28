@@ -9,10 +9,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -34,7 +35,7 @@ export async function POST(
       );
     }
     
-    const incidentId = params.id;
+    const incidentId = id;
     
     const result = await addIncidentNote({
       incidentId,

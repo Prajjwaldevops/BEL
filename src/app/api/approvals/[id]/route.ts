@@ -9,10 +9,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -24,7 +25,7 @@ export async function GET(
       );
     }
     
-    const approvalId = params.id;
+    const approvalId = id;
     
     const approval = await getApprovalById(approvalId);
     
@@ -52,10 +53,11 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -91,7 +93,7 @@ export async function DELETE(
       );
     }
     
-    const approvalId = params.id;
+    const approvalId = id;
     
     const result = await cancelApproval(approvalId, user.id, reason);
     

@@ -94,6 +94,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AuditRegistry__factory>;
     getContractFactory(
+      name: "DocumentNFT",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.DocumentNFT__factory>;
+    getContractFactory(
       name: "IdentityNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IdentityNFT__factory>;
@@ -211,6 +215,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.AuditRegistry>;
     getContractAt(
+      name: "DocumentNFT",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.DocumentNFT>;
+    getContractAt(
       name: "IdentityNFT",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -312,6 +321,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AuditRegistry>;
     deployContract(
+      name: "DocumentNFT",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DocumentNFT>;
+    deployContract(
       name: "IdentityNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IdentityNFT>;
@@ -428,6 +441,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AuditRegistry>;
+    deployContract(
+      name: "DocumentNFT",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DocumentNFT>;
     deployContract(
       name: "IdentityNFT",
       args: any[],

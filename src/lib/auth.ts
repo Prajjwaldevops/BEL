@@ -225,10 +225,22 @@ export const ROUTE_PERMISSIONS: Record<string, {
     description: 'Asset management - all roles'
   },
   
-  // Documents - ADMIN, ALTER, DEBUGGER
+  // Documents - All roles
   '/dashboard/documents': {
     roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'],
-    description: 'Document management - all roles can view'
+    description: 'Document vault - all roles can view'
+  },
+  '/dashboard/documents/upload': {
+    roles: ['ADMIN', 'ALTER', 'DEBUGGER'],
+    description: 'Document upload - ADMIN, ALTER, DEBUGGER'
+  },
+  '/dashboard/nfts': {
+    roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'],
+    description: 'NFT Gallery - all roles can view'
+  },
+  '/dashboard/verification': {
+    roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'],
+    description: 'Verification Center - all roles'
   },
   '/dashboard/ipfs': {
     roles: ['ADMIN', 'ALTER', 'DEBUGGER'],
