@@ -171,7 +171,11 @@ export default function LoginPage() {
       await sleep(200);
 
       // Wallet verification phase
-      if (walletAddress && data.user.walletAddress) {
+      // Bypass wallet check for test users: admin and sih
+      const TEST_USERS_BYPASS = ['admin', 'sih'];
+      const bypassWalletCheck = TEST_USERS_BYPASS.includes(username.toLowerCase());
+      
+      if (walletAddress && data.user.walletAddress && !bypassWalletCheck) {
         setPhase('wallet_check');
         addTerminalLine('VERIFYING HARDWARE IDENTITY...', 'warning');
         await sleep(500);
@@ -186,6 +190,9 @@ export default function LoginPage() {
         }
 
         addTerminalLine('HARDWARE IDENTITY CONFIRMED ✓', 'success');
+        await sleep(200);
+      } else if (bypassWalletCheck) {
+        addTerminalLine('⚠️  TEST USER — WALLET CHECK BYPASSED', 'warning');
         await sleep(200);
       } else if (walletAddress) {
         addTerminalLine('HARDWARE KEY LINKED (UNREGISTERED)', 'warning');
