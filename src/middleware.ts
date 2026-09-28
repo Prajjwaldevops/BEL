@@ -104,61 +104,42 @@ export async function middleware(request: NextRequest) {
   }
   
   // Route requires authentication - verify user session
+  // Route requires authentication - verify user session
   try {
-    const supabase = createClient(request);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const token = request.cookies.get('bel-auth-token')?.value;
     
-    if (error || !user) {
-      // No valid session - redirect to login
+    if (!token) {
+      // No token - redirect to login
       const url = request.nextUrl.clone();
       url.pathname = '/login';
-      url.searchParams.set('redirect', pathname); // Save intended destination
+      url.searchParams.set('redirect', pathname);
       return NextResponse.redirect(url);
     }
     
-    // User is authenticated - check if they have an active profile with roles
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        user_roles!inner (
-          role_name,
-          is_active,
-          expires_at
-        )
-      `)
-      .eq('id', user.id) // Fixed user_id -> id for auth.users linking
-      .single();
-    
-    if (!profile) {
-      // User exists but no profile - redirect to unauthorized
-      // (Profile should be created during registration)
-      const url = request.nextUrl.clone();
-      url.pathname = '/unauthorized';
-      url.searchParams.set('reason', 'no_profile');
-      return NextResponse.redirect(url);
+    // Parse JWT payload (edge compatible)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid token format');
     }
     
-    // Extract active roles
-    const activeRoles = profile.user_roles
-      .filter((ur: any) => 
-        ur.is_active && 
-        (!ur.expires_at || new Date(ur.expires_at) > new Date())
-      )
-      .map((ur: any) => ur.role_name);
+    const payloadStr = Buffer.from(parts[1], 'base64').toString('utf-8');
+    const payload = JSON.parse(payloadStr);
     
-    if (activeRoles.length === 0) {
-      // User has no active roles - redirect to unauthorized
-      const url = request.nextUrl.clone();
-      url.pathname = '/unauthorized';
-      url.searchParams.set('reason', 'no_active_roles');
-      return NextResponse.redirect(url);
+    // Check expiry
+    if (payload.exp) {
+      const expMs = payload.exp > 1e12 ? payload.exp : payload.exp * 1000;
+      if (expMs < Date.now()) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('error', 'session_expired');
+        url.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(url);
+      }
     }
     
-    // Check if route requires ADMIN role specifically
+    // Role check for admin routes
     if (isAdminOnlyRoute(pathname)) {
-      if (!activeRoles.includes('ADMIN') && !activeRoles.includes('super_admin') && !activeRoles.includes('admin')) {
-        // User doesn't have ADMIN role - redirect to unauthorized
+      if (payload.role !== 'ADMIN' && !payload.isAdmin) {
         const url = request.nextUrl.clone();
         url.pathname = '/unauthorized';
         url.searchParams.set('reason', 'admin_required');
@@ -167,8 +148,6 @@ export async function middleware(request: NextRequest) {
       }
     }
     
-    // User is authenticated and has required permissions - allow access
-    // Note: Page-level RBAC will handle additional specific role requirements
     return NextResponse.next();
     
   } catch (error) {

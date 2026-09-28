@@ -146,10 +146,27 @@ export default function LoginPage() {
 
       addTerminalLine('TRANSMITTING TO CENTRAL AUTH...', 'info');
 
+      let signature = '';
+      let messageToSign = '';
+      if (walletAddress && typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          addTerminalLine('AWAITING HARDWARE SIGNATURE...', 'warning');
+          messageToSign = `BEL Sentinel Authentication\nTimestamp: ${Date.now()}\nAddress: ${walletAddress}`;
+          signature = await (window as any).ethereum.request({
+            method: 'personal_sign',
+            params: [messageToSign, walletAddress],
+          });
+          addTerminalLine('HARDWARE SIGNATURE ACQUIRED ✓', 'success');
+        } catch (err) {
+          addTerminalLine('SIGNATURE REJECTED', 'error');
+          throw new Error('User denied signature');
+        }
+      }
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, walletAddress: walletAddress || null }),
+        body: JSON.stringify({ username, password, walletAddress: walletAddress || null, signature, messageToSign }),
       });
 
       const data = await res.json();

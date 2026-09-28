@@ -115,28 +115,33 @@ export async function POST(request: NextRequest) {
     const metadataString = JSON.stringify(metadata, Object.keys(metadata).sort());
     const metadataHash = '0x' + crypto.createHash('sha256').update(metadataString).digest('hex');
 
-    // 6. Encrypt document
+    // 6. Encrypt document (MANDATORY)
+    if (!process.env.DOCUMENT_ENCRYPTION_KEY) {
+      return NextResponse.json(
+        { error: 'System misconfiguration: Encryption key missing. Plaintext storage is strictly prohibited.' },
+        { status: 500 }
+      );
+    }
+
     let encryptionMethod: string | null = null;
     let encryptionIv: string | null = null;
     let encryptionTag: string | null = null;
     let encryptionKeyId: string | null = null;
     let dataToStore = buffer;
 
-    if (process.env.DOCUMENT_ENCRYPTION_KEY) {
-      try {
-        const encrypted = await encryptDocument(buffer);
-        dataToStore = encrypted.encryptedData;
-        encryptionMethod = encrypted.algorithm;
-        encryptionIv = encrypted.iv.toString('hex');
-        encryptionTag = encrypted.authTag.toString('hex');
-        encryptionKeyId = encrypted.keyId;
-      } catch (encErr) {
-        console.error('Encryption error:', encErr);
-        return NextResponse.json(
-          { error: 'Failed to encrypt document' },
-          { status: 500 }
-        );
-      }
+    try {
+      const encrypted = await encryptDocument(buffer);
+      dataToStore = encrypted.encryptedData;
+      encryptionMethod = encrypted.algorithm;
+      encryptionIv = encrypted.iv.toString('hex');
+      encryptionTag = encrypted.authTag.toString('hex');
+      encryptionKeyId = encrypted.keyId;
+    } catch (encErr) {
+      console.error('Encryption error:', encErr);
+      return NextResponse.json(
+        { error: 'Failed to encrypt document' },
+        { status: 500 }
+      );
     }
 
     // 7. Upload to cloud storage

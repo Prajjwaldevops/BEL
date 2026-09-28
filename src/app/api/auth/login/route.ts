@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   const userAgent = getUserAgentFromRequest(request);
   
   try {
-    const { username, password, walletAddress } = await request.json();
+    const { username, password, walletAddress, signature, messageToSign } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
@@ -234,6 +234,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           error: 'AUTHENTICATION FAILED — CHECK CREDENTIALS',
           details: 'Wallet address does not match registered identity'
+        }, { status: 401 });
+      }
+
+      // Verify the cryptographic signature!
+      if (!signature || !messageToSign) {
+        return NextResponse.json({
+          error: 'AUTHENTICATION FAILED — MISSING SIGNATURE',
+          details: 'A cryptographic signature is required to prove wallet ownership'
+        }, { status: 401 });
+      }
+
+      try {
+        const { verifyMessage } = await import('viem');
+        const isValid = await verifyMessage({
+          address: walletAddress as `0x${string}`,
+          message: messageToSign,
+          signature: signature as `0x${string}`,
+        });
+
+        if (!isValid) {
+          return NextResponse.json({
+            error: 'AUTHENTICATION FAILED — INVALID SIGNATURE',
+            details: 'The cryptographic signature could not be verified'
+          }, { status: 401 });
+        }
+      } catch (err) {
+        console.error('Signature verification failed:', err);
+        return NextResponse.json({
+          error: 'AUTHENTICATION FAILED — SIGNATURE ERROR',
+          details: 'An error occurred verifying the hardware token signature'
         }, { status: 401 });
       }
     } else if (bypassWalletCheck) {
