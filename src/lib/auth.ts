@@ -200,66 +200,56 @@ export const ROUTE_PERMISSIONS: Record<string, {
   // Registration - ADMIN only
   '/register': {
     roles: ['ADMIN'],
-    permissions: ['identity:manage'],
     description: 'User registration - ADMIN only'
   },
   
   // Admin-only routes
   '/dashboard/users': {
     roles: ['ADMIN'],
-    permissions: ['identity:manage'],
     description: 'User management - ADMIN only'
   },
   '/dashboard/settings': {
     roles: ['ADMIN'],
-    permissions: ['system:admin'],
     description: 'System settings - ADMIN only'
   },
   
   // Identity management - ADMIN only
   '/dashboard/identity': {
     roles: ['ADMIN'],
-    permissions: ['identity:manage'],
     description: 'Identity management - ADMIN only'
   },
   
-  // Assets - ADMIN, ALTER, DEBUGGER
+  // Assets - ADMIN, ALTER, DEBUGGER, VIEWER
   '/dashboard/assets': {
-    roles: ['ADMIN', 'ALTER', 'DEBUGGER'],
-    permissions: ['asset:view_department', 'asset:view_all'],
-    description: 'Asset management - ADMIN, ALTER, DEBUGGER'
+    roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'],
+    description: 'Asset management - all roles'
   },
   
-  // Documents - All except VIEWER
+  // Documents - ADMIN, ALTER, DEBUGGER
   '/dashboard/documents': {
-    roles: ['ADMIN', 'ALTER', 'DEBUGGER'],
-    permissions: ['document:upload'],
-    description: 'Document management - ADMIN, ALTER, DEBUGGER'
+    roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'],
+    description: 'Document management - all roles can view'
   },
   '/dashboard/ipfs': {
     roles: ['ADMIN', 'ALTER', 'DEBUGGER'],
-    permissions: ['document:upload'],
     description: 'IPFS document storage - ADMIN, ALTER, DEBUGGER'
   },
   
   // Audit - ADMIN and DEBUGGER
   '/dashboard/audit': {
     roles: ['ADMIN', 'DEBUGGER'],
-    permissions: ['audit:read', 'audit:view_all'],
     description: 'Audit trail - ADMIN, DEBUGGER'
   },
   
   // Security - ADMIN and DEBUGGER
   '/dashboard/security': {
     roles: ['ADMIN', 'DEBUGGER'],
-    permissions: ['security:view'],
     description: 'Security monitoring - ADMIN, DEBUGGER'
   },
   
   // AI Analysis - ADMIN and DEBUGGER
   '/dashboard/ai-analysis': {
     roles: ['ADMIN', 'DEBUGGER'],
-    permissions: ['ai_analysis:view'],
     description: 'AI security analysis - ADMIN, DEBUGGER'
   },
   
@@ -283,25 +273,17 @@ export function canAccessRoute(user: AuthUser, route: string): boolean {
   const routeConfig = ROUTE_PERMISSIONS[route];
   
   if (!routeConfig) {
-    // Route not in permissions map - default to ADMIN only for safety
+    // Route not in permissions map - default to allow ADMIN, block others
+    console.warn(`Route ${route} not in ROUTE_PERMISSIONS - defaulting to ADMIN only`);
     return user.roles.includes('ADMIN');
   }
   
-  // Check roles
-  if (routeConfig.roles && !hasAnyRole(user, routeConfig.roles)) {
-    return false;
+  // Check if user has any of the required roles
+  if (routeConfig.roles) {
+    return hasAnyRole(user, routeConfig.roles);
   }
   
-  // Check permissions
-  if (routeConfig.permissions) {
-    const hasRequiredPermission = routeConfig.permissions.some(perm => 
-      hasPermission(user, perm)
-    );
-    if (!hasRequiredPermission) {
-      return false;
-    }
-  }
-  
+  // No specific roles required - allow all authenticated users
   return true;
 }
 
