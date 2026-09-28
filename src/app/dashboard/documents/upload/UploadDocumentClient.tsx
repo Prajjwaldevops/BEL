@@ -62,67 +62,10 @@ export default function UploadDocumentClient() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState('');
 
-  // Wagmi hooks for minting
-  const { writeContract, data: txHash, isPending: isMintPending, error: mintError } = useWriteContract();
-  const { data: txReceipt, isLoading: isWaitingReceipt } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
-
-  // Handle file selection
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      if (!name) setName(selected.name.replace(/\.[^/.]+$/, ''));
-      setError(null);
-    }
-  }, [name]);
-
-  // Handle drop
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) {
-      setFile(dropped);
-      if (!name) setName(dropped.name.replace(/\.[^/.]+$/, ''));
-    }
-  }, [name]);
-
-  // Upload document
-  const handleUpload = async () => {
-    if (!file || !name) return;
-    setStage('uploading');
-    setError(null);
-
-    try {
-      setUploadProgress('Validating file...');
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', name);
-      formData.append('description', description);
-      formData.append('classification', classification);
-      formData.append('transferable', String(transferable));
-      if (address) formData.append('walletAddress', address);
-
-      setUploadProgress('Hashing, encrypting & uploading...');
-      const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-
-      setUploadResult(data);
-      setStage('stored');
-      setUploadProgress('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-      setStage('error');
-    }
-  };
-
-  // Mint NFT
+  // Mint NFT (Server-side Relayer)
   const handleMint = async () => {
-    if (!uploadResult || !isConnected || !address) {
-      setError('Connect your wallet to mint');
+    if (!uploadResult) {
+      setError('Document not uploaded yet');
       return;
     }
 
@@ -130,88 +73,29 @@ export default function UploadDocumentClient() {
     setError(null);
 
     try {
-      const contractAddress = getDocumentNFTAddress();
-      const contentHashBytes = uploadResult.document.contentHash as `0x${string}`;
-      const metadataHashBytes = uploadResult.document.metadataHash as `0x${string}`;
-
-      // Token URI — points to verification
-      const tokenURI = `${window.location.origin}/verify/${uploadResult.document.document_id}`;
-
-      writeContract({
-        address: contractAddress,
-        abi: DOCUMENT_NFT_ABI,
-        functionName: 'mintDocument',
-        args: [
-          address,
-          tokenURI,
-          contentHashBytes,
-          metadataHashBytes,
-          transferable,
-          BigInt(0), // no expiry for now
-        ],
+      const res = await fetch('/api/documents/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: uploadResult.document.id })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Server-side mint failed');
+
+      // The server already minted and updated the DB.
+      // We just map the receipt data back to state for the UI
+      setMintResult({
+        tokenId: data.receipt?.tokenId || '0',
+        txHash: data.receipt?.transactionHash || '0x0',
+        blockNumber: Number(data.receipt?.blockNumber || 0),
+        gasUsed: data.receipt?.gasUsed || '0',
+        gasCostEth: '0', // Adjust if needed
+      });
+      setStage('minted');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Mint failed');
       setStage('stored');
     }
   };
-
-  // Handle mint transaction receipt
-  if (txReceipt && stage === 'minting' && !mintResult) {
-    const gasUsed = txReceipt.gasUsed.toString();
-    const gasPrice = txReceipt.effectiveGasPrice.toString();
-    const gasCostEth = (Number(txReceipt.gasUsed * txReceipt.effectiveGasPrice) / 1e18).toFixed(8);
-
-    // Parse DocumentMinted event to get tokenId
-    let tokenId = '0';
-    for (const log of txReceipt.logs) {
-      // DocumentMinted event topic
-      if (log.topics[0] === '0x' + 'e4e3e2e1') { // placeholder, will match by index
-        tokenId = log.topics[1] ? BigInt(log.topics[1]).toString() : '0';
-        break;
-      }
-    }
-    // Fallback: use first indexed topic from first log
-    if (tokenId === '0' && txReceipt.logs.length > 0) {
-      const firstLog = txReceipt.logs[0];
-      if (firstLog.topics[1]) {
-        tokenId = BigInt(firstLog.topics[1]).toString();
-      }
-    }
-
-    const result: MintResult = {
-      tokenId,
-      txHash: txReceipt.transactionHash,
-      blockNumber: Number(txReceipt.blockNumber),
-      gasUsed,
-      gasCostEth,
-    };
-    setMintResult(result);
-    setStage('minted');
-
-    // Confirm mint to backend
-    fetch('/api/documents/mint-confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        documentId: uploadResult?.document.id,
-        tokenId,
-        contractAddress: getDocumentNFTAddress(),
-        transactionHash: txReceipt.transactionHash,
-        blockNumber: Number(txReceipt.blockNumber),
-        chainId: chain?.id,
-        ownerWallet: address,
-        gasUsed,
-        gasPrice,
-      }),
-    }).catch(console.error);
-  }
-
-  // Handle mint error
-  if (mintError && stage === 'minting') {
-    setError(mintError.message.includes('User rejected') ? 'Transaction rejected by wallet' : mintError.message);
-    setStage('stored');
-  }
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';

@@ -43,7 +43,6 @@ const allNavItems = [
   { label: 'NFT Gallery', icon: Coins, href: '/dashboard/nfts', roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'] },
   { label: 'Verify', icon: ShieldCheck, href: '/dashboard/verification', roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'] },
   { label: 'AI Analytics', icon: Brain, href: '/dashboard/ai-analysis', roles: ['ADMIN'] },
-  { label: 'IPFS Storage', icon: HardDrive, href: '/dashboard/ipfs', roles: ['ADMIN'] },
   { label: 'TX Logs', icon: ArrowRightLeft, href: '/dashboard/transactions', roles: ['ADMIN'] },
   { label: 'Threat Intel', icon: ShieldAlert, href: '/dashboard/security', roles: ['ADMIN'] },
   { label: 'Settings', icon: Settings, href: '/dashboard/settings', roles: ['ADMIN'] },

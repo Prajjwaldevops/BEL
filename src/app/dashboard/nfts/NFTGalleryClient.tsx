@@ -168,11 +168,19 @@ export default function NFTGalleryClient() {
                 </div>
 
                 {/* Content Hash */}
-                <div className="px-4 pb-4">
+                <div className="px-4 pb-4 space-y-2">
                   <div className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                     <p className="text-[8px] text-white/20 mb-0.5">SHA-256</p>
                     <p className="text-[8px] text-white/30 break-all font-mono">{nft.content_hash}</p>
                   </div>
+                  
+                  <a 
+                    href={`/dashboard/verification`}
+                    className="w-full py-1.5 flex items-center justify-center gap-1.5 rounded bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-white/60 hover:text-white transition-all text-[9px] font-mono tracking-widest uppercase"
+                  >
+                    <Shield className="w-3 h-3" />
+                    Verify Document
+                  </a>
                 </div>
               </motion.div>
             );
