@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { UserRole, ROLES } from '@/lib/constants';
+import { cookies } from 'next/headers';
 
 export interface AuthUser {
   id: string;
@@ -17,66 +18,101 @@ export interface AuthUser {
 /**
  * Get current authenticated user with their roles
  * Returns null if not authenticated
+ * 
+ * ⚠️ TEMPORARY: Uses custom token from login API
+ * TODO: Migrate to proper Supabase Auth after creating auth.users entries
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const supabase = await createClient();
+    // Check for custom auth token in cookies
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get('bel-auth-token')?.value;
     
-    // Check Supabase auth session
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    if (!authToken) {
       return null;
     }
 
-    // Get profile with roles
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        user_id,
-        username,
-        full_name,
-        email,
-        wallet_address,
-        department,
-        clearance_level,
-        user_roles!inner (
-          role_name,
-          is_active,
-          expires_at
-        )
-      `)
-      .eq('user_id', user.id)
-      .single();
+    // Decode the custom JWT token (format: header.payload.signature)
+    try {
+      const parts = authToken.split('.');
+      if (parts.length !== 3) {
+        return null;
+      }
+      
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp < Date.now()) {
+        return null;
+      }
 
-    if (profileError || !profile) {
+      // Get user profile from database using username
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return null;
+      }
+
+      // Look up user by username (from token)
+      const userRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(payload.username)}&select=*`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        }
+      );
+
+      const users = await userRes.json();
+      if (!Array.isArray(users) || users.length === 0) {
+        return null;
+      }
+
+      const user = users[0];
+
+      // Get user roles
+      const roleRes = await fetch(
+        `${supabaseUrl}/rest/v1/user_roles?profile_id=eq.${user.id}&is_active=eq.true&select=role_id,roles(name)`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        }
+      );
+
+      const roleData = await roleRes.json();
+      let roles: UserRole[] = [];
+      
+      if (user.is_admin) {
+        roles = ['ADMIN'];
+      } else if (Array.isArray(roleData) && roleData.length > 0) {
+        roles = roleData
+          .map((r: any) => r?.roles?.name)
+          .filter((name: any) => name && ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'].includes(name));
+      }
+
+      if (roles.length === 0) {
+        roles = ['VIEWER']; // Default fallback
+      }
+
+      return {
+        id: user.id,
+        userId: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        email: user.email,
+        walletAddress: user.wallet_address,
+        roles,
+        department: user.department,
+        clearanceLevel: user.clearance || 'UNCLASSIFIED',
+      };
+    } catch (decodeError) {
+      console.error('Token decode error:', decodeError);
       return null;
     }
-
-    // Extract active roles
-    const roles = profile.user_roles
-      .filter((ur: any) => 
-        ur.is_active && 
-        (!ur.expires_at || new Date(ur.expires_at) > new Date())
-      )
-      .map((ur: any) => ur.role_name as UserRole);
-
-    if (roles.length === 0) {
-      return null; // No active roles
-    }
-
-    return {
-      id: profile.id,
-      userId: profile.user_id,
-      username: profile.username,
-      fullName: profile.full_name,
-      email: profile.email,
-      walletAddress: profile.wallet_address,
-      roles,
-      department: profile.department,
-      clearanceLevel: profile.clearance_level,
-    };
   } catch (error) {
     console.error('Auth error:', error);
     return null;

@@ -236,7 +236,8 @@ export async function POST(request: NextRequest) {
       isAdmin: user.is_admin,
     });
 
-    return NextResponse.json({
+    // Create response with token in body and cookie
+    const response = NextResponse.json({
       token,
       user: {
         id: user.id,
@@ -254,6 +255,19 @@ export async function POST(request: NextRequest) {
         clearance: user.clearance || 'UNCLASSIFIED',
       },
     });
+
+    // Set auth token in HTTP-only cookie for server-side auth
+    response.cookies.set({
+      name: 'bel-auth-token',
+      value: token,
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 8 * 60 * 60, // 8 hours (same as token expiry)
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Login error:', error);
