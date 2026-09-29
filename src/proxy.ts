@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/middleware';
 
 /**
- * Next.js Middleware for route-level authentication
- * Runs on ALL routes before the page is rendered
+ * Next.js Proxy for route-level authentication (formerly Middleware)
+ * Runs on ALL routes before the request is completed
  * 
  * This is the FIRST line of defense - it prevents unauthorized access
  * at the edge before any page code executes.
@@ -88,7 +88,7 @@ function requiresAuth(pathname: string): boolean {
   return PROTECTED_PATTERNS.some(pattern => pathname.startsWith(pattern));
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Allow public routes
@@ -103,7 +103,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Route requires authentication - verify user session
   // Route requires authentication - verify user session
   try {
     const token = request.cookies.get('bel-auth-token')?.value;
@@ -151,7 +150,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
     
   } catch (error) {
-    console.error('Middleware auth error:', error);
+    console.error('Proxy auth error:', error);
     
     // On error, redirect to login for safety
     const url = request.nextUrl.clone();
@@ -162,9 +161,9 @@ export async function middleware(request: NextRequest) {
 }
 
 /**
- * Configure which routes this middleware should run on
+ * Configure which routes this proxy should run on
  * 
- * This matcher ensures middleware runs on:
+ * This matcher ensures proxy runs on:
  * - All routes except static files
  * - All API routes
  * - All dashboard routes
