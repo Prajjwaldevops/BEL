@@ -10,8 +10,14 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Service role client for admin operations
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+// Service role client for admin operations (lazy init)
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(supabaseUrl, supabaseServiceKey)
+  }
+  return _supabase
+}
 
 export interface InviteToken {
   id: string
@@ -65,7 +71,7 @@ export async function createInviteToken(
 ): Promise<{ token?: InviteToken; error?: string }> {
   try {
     // Validate issuer is an admin
-    const { data: issuer, error: issuerError } = await supabase
+    const { data: issuer, error: issuerError } = await getSupabase()
       .from('profiles')
       .select('id, is_admin')
       .eq('id', params.issuedBy)
@@ -83,7 +89,7 @@ export async function createInviteToken(
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
 
     // Insert token
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('invite_tokens')
       .insert({
         token,
@@ -103,7 +109,7 @@ export async function createInviteToken(
     }
 
     // Log the token creation
-    await supabase.from('audit_logs').insert({
+    await getSupabase().from('audit_logs').insert({
       actor_id: params.issuedBy,
       action: 'INVITE_TOKEN_CREATED',
       resource_type: 'invite_token',
@@ -137,7 +143,7 @@ export async function validateInviteToken(
 ): Promise<ValidateTokenResult> {
   try {
     // Fetch token
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('invite_tokens')
       .select('*')
       .eq('token', token)
@@ -164,7 +170,7 @@ export async function validateInviteToken(
     // Check if expired
     if (new Date(data.expires_at) < new Date()) {
       // Auto-deactivate expired token
-      await supabase
+      await getSupabase()
         .from('invite_tokens')
         .update({ is_active: false })
         .eq('id', data.id)
@@ -222,7 +228,7 @@ export async function markTokenAsUsed(
   usedBy: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('invite_tokens')
       .update({
         used_at: new Date().toISOString(),
@@ -237,7 +243,7 @@ export async function markTokenAsUsed(
     }
 
     // Log token usage
-    await supabase.from('audit_logs').insert({
+    await getSupabase().from('audit_logs').insert({
       actor_id: usedBy,
       action: 'INVITE_TOKEN_USED',
       resource_type: 'invite_token',
@@ -266,7 +272,7 @@ export async function revokeInviteToken(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verify admin
-    const { data: admin, error: adminError } = await supabase
+    const { data: admin, error: adminError } = await getSupabase()
       .from('profiles')
       .select('is_admin')
       .eq('id', revokedBy)
@@ -276,7 +282,7 @@ export async function revokeInviteToken(
       return { success: false, error: 'Only admins can revoke tokens' }
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('invite_tokens')
       .update({ is_active: false })
       .eq('id', tokenId)
@@ -287,7 +293,7 @@ export async function revokeInviteToken(
     }
 
     // Log revocation
-    await supabase.from('audit_logs').insert({
+    await getSupabase().from('audit_logs').insert({
       actor_id: revokedBy,
       action: 'INVITE_TOKEN_REVOKED',
       resource_type: 'invite_token',
@@ -316,7 +322,7 @@ export async function listInviteTokens(params: {
   offset?: number
 }): Promise<{ tokens?: InviteToken[]; error?: string; total?: number }> {
   try {
-    let query = supabase
+    let query = getSupabase()
       .from('invite_tokens')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -360,7 +366,7 @@ export async function cleanupExpiredTokens(): Promise<{
   error?: string
 }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('invite_tokens')
       .update({ is_active: false })
       .eq('is_active', true)
@@ -376,7 +382,7 @@ export async function cleanupExpiredTokens(): Promise<{
     const deactivatedCount = data?.length || 0
 
     if (deactivatedCount > 0) {
-      await supabase.from('audit_logs').insert({
+      await getSupabase().from('audit_logs').insert({
         action: 'INVITE_TOKENS_CLEANUP',
         resource_type: 'invite_token',
         result: 'SUCCESS',

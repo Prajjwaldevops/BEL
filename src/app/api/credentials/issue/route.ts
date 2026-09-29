@@ -3,10 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { issueCredential, issueClearanceCredential, issueRoleCredential } from '@/lib/verifiable-credentials';
 import { generatePQKeyPair } from '@/lib/post-quantum-crypto';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     
     // Get or generate issuer's PQ key pair
     let issuerKeys;
-    const { data: existingKeys } = await supabase
+    const { data: existingKeys } = await getSupabase()
       .from('pq_keys')
       .select('private_key, public_key')
       .eq('user_did', issuerDID)
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
       };
 
       // Store in database
-      await supabase.from('pq_keys').insert({
+      await getSupabase().from('pq_keys').insert({
         user_did: issuerDID,
         public_key: keyPair.publicKey,
         private_key: keyPair.privateKey, // In production, encrypt this!
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store credential in database
-    await supabase.from('verifiable_credentials').insert({
+    await getSupabase().from('verifiable_credentials').insert({
       credential_id: credential.id,
       issuer: issuerDID,
       subject: subjectDID,
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Audit log
-    await supabase.from('audit_logs').insert({
+    await getSupabase().from('audit_logs').insert({
       user_id: issuerDID,
       action: 'CREDENTIAL_ISSUED',
       resource_type: 'CREDENTIAL',

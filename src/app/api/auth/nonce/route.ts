@@ -3,10 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { checkRateLimit, getClientIP, getUserAgent, recordLoginAttempt } from '@/lib/rate-limit';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: NextRequest) {
   // Rate limiting check
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if wallet is registered
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await getSupabase()
       .from('users')
       .select('id, username, role, wallet_address')
       .eq('wallet_address', walletAddress.toLowerCase())
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
 
     // Store nonce with expiry
-    const { error: nonceError } = await supabase
+    const { error: nonceError } = await getSupabase()
       .from('auth_nonces')
       .insert({
         wallet_address: walletAddress.toLowerCase(),

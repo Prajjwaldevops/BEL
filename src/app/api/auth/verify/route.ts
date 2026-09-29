@@ -4,10 +4,12 @@ import { verifyMessage } from 'ethers';
 import * as jwt from 'jsonwebtoken';
 import { checkRateLimit, getClientIP, getUserAgent, recordLoginAttempt } from '@/lib/rate-limit';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-to-a-real-secret-in-production';
 
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Retrieve nonce from database
-    const { data: nonceRecord, error: nonceError } = await supabase
+    const { data: nonceRecord, error: nonceError } = await getSupabase()
       .from('auth_nonces')
       .select('*')
       .eq('wallet_address', walletAddress.toLowerCase())
@@ -94,13 +96,13 @@ This request will not trigger a blockchain transaction or cost any gas fees.`;
     }
 
     // Mark nonce as used (single-use)
-    await supabase
+    await getSupabase()
       .from('auth_nonces')
       .update({ used: true, used_at: new Date().toISOString() })
       .eq('id', nonceRecord.id);
 
     // Retrieve user data
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await getSupabase()
       .from('users')
       .select('id, username, full_name, role, department, wallet_address')
       .eq('wallet_address', walletAddress.toLowerCase())
@@ -130,7 +132,7 @@ This request will not trigger a blockchain transaction or cost any gas fees.`;
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     // Log authentication event
-    await supabase.from('audit_logs').insert({
+    await getSupabase().from('audit_logs').insert({
       user_id: user.id,
       action: 'WALLET_AUTH_SUCCESS',
       resource_type: 'USER',

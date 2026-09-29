@@ -17,7 +17,13 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(supabaseUrl, supabaseServiceKey)
+  }
+  return _supabase
+}
 
 export interface AuditEvent {
   id: string
@@ -61,7 +67,7 @@ export async function queueAuditEvent(event: Omit<AuditEvent, 'id' | 'event_hash
   error?: string
 }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('audit_log_queue')
       .insert({
         actor_id: event.actor_id,
@@ -103,7 +109,7 @@ export async function getPendingEvents(limit: number = 100): Promise<{
   error?: string
 }> {
   try {
-    const { data, error, count } = await supabase
+    const { data, error, count } = await getSupabase()
       .from('audit_log_queue')
       .select('*', { count: 'exact' })
       .eq('anchored', false)
@@ -193,7 +199,7 @@ export async function anchorBatchToDatabase(
 }> {
   try {
     // Insert batch record
-    const { data: batch, error: batchError } = await supabase
+    const { data: batch, error: batchError } = await getSupabase()
       .from('audit_batches')
       .insert({
         merkle_root: merkleRoot,
@@ -212,7 +218,7 @@ export async function anchorBatchToDatabase(
     }
 
     // Update events to mark as anchored
-    const { error: updateError } = await supabase
+    const { error: updateError } = await getSupabase()
       .from('audit_log_queue')
       .update({
         batch_id: batch.id,
@@ -233,7 +239,7 @@ export async function anchorBatchToDatabase(
       proof: p.proof,
     }))
 
-    const { error: proofsError } = await supabase
+    const { error: proofsError } = await getSupabase()
       .from('merkle_proofs')
       .insert(proofRecords)
 
@@ -265,7 +271,7 @@ export async function updateBatchWithTx(
   gasUsed?: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('audit_batches')
       .update({
         tx_hash: txHash,
@@ -295,7 +301,7 @@ export async function getBatchConfig(): Promise<{
   enabled: boolean
 }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('system_settings')
       .select('key, value')
       .in('key', ['audit_batch_size', 'audit_batch_interval_minutes', 'audit_batch_enabled'])
@@ -397,7 +403,7 @@ export async function getEventProof(eventId: string): Promise<{
 }> {
   try {
     // Fetch event
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await getSupabase()
       .from('audit_log_queue')
       .select('*')
       .eq('id', eventId)
@@ -412,7 +418,7 @@ export async function getEventProof(eventId: string): Promise<{
     }
 
     // Fetch proof
-    const { data: proofData, error: proofError } = await supabase
+    const { data: proofData, error: proofError } = await getSupabase()
       .from('merkle_proofs')
       .select('*')
       .eq('event_id', eventId)
@@ -423,7 +429,7 @@ export async function getEventProof(eventId: string): Promise<{
     }
 
     // Fetch batch
-    const { data: batch, error: batchError } = await supabase
+    const { data: batch, error: batchError } = await getSupabase()
       .from('audit_batches')
       .select('merkle_root, tx_hash')
       .eq('id', event.batch_id)
