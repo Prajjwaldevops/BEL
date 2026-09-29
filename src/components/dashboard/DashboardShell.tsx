@@ -1,18 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Fingerprint, Users, Boxes, GitBranch,
-  FileText, HardDrive, ArrowRightLeft, ShieldAlert,
-  Settings, LogOut, Crosshair, Terminal, Brain,
-  Activity, Menu, X, Zap, Coins, ShieldCheck,
-  ChevronLeft, ChevronRight, Bell, Search,
-  Radio, Lock, Cpu, Wifi
+  FileText, ArrowRightLeft, ShieldAlert,
+  Settings, LogOut, Brain,
+  Menu, X, Coins, ShieldCheck,
+  ChevronLeft, ChevronRight, Search,
+  Crosshair, Cpu, Wifi, Lock
 } from 'lucide-react';
 
+/* ── Types ── */
 interface SessionUser {
   id: string;
   username: string;
@@ -28,29 +29,53 @@ interface SessionUser {
   clearance?: string;
 }
 
-const ROLE_THEMES: Record<string, { accent: string; glow: string; label: string; bg: string }> = {
-  ADMIN:    { accent: '#ef4444', glow: 'rgba(239,68,68,0.15)', label: 'TACTICAL OPS', bg: 'rgba(239,68,68,0.06)' },
-  VIEWER:   { accent: '#38bdf8', glow: 'rgba(56,189,248,0.15)', label: 'INTEL VIEWER', bg: 'rgba(56,189,248,0.06)' },
-  ALTER:    { accent: '#fbbf24', glow: 'rgba(251,191,36,0.15)', label: 'FIELD OPS', bg: 'rgba(251,191,36,0.06)' },
-  DEBUGGER: { accent: '#a78bfa', glow: 'rgba(167,139,250,0.15)', label: 'SYS DEBUGGER', bg: 'rgba(167,139,250,0.06)' },
+/* ── Role Visual System ── */
+const ROLE_THEMES: Record<string, { accent: string; label: string }> = {
+  ADMIN:    { accent: '#ef4444', label: 'ADMIN OPS' },
+  VIEWER:   { accent: '#00d4ff', label: 'INTEL VIEWER' },
+  ALTER:    { accent: '#ff9f43', label: 'FIELD OPS' },
+  DEBUGGER: { accent: '#818cf8', label: 'SYS DEBUG' },
 };
 
+/* ── Navigation Configuration ── */
 const allNavItems = [
-  { label: 'Overview',    icon: LayoutDashboard, href: '/dashboard',              roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'], group: 'MAIN' },
-  { label: 'Identity',    icon: Fingerprint,     href: '/dashboard/identity',      roles: ['ADMIN'],                               group: 'MAIN' },
-  { label: 'Personnel',   icon: Users,           href: '/dashboard/users',         roles: ['ADMIN'],                               group: 'MAIN' },
-  { label: 'Assets',      icon: Boxes,           href: '/dashboard/assets',        roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'], group: 'OPERATIONS' },
-  { label: 'Operations',  icon: GitBranch,       href: '/dashboard/lifecycle',     roles: ['ADMIN', 'ALTER'],                      group: 'OPERATIONS' },
-  { label: 'Doc Vault',   icon: FileText,        href: '/dashboard/documents',     roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
-  { label: 'NFT Gallery', icon: Coins,           href: '/dashboard/nfts',          roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
-  { label: 'Verify',      icon: ShieldCheck,     href: '/dashboard/verification',  roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
-  { label: 'AI Analytics',icon: Brain,           href: '/dashboard/ai-analysis',   roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
-  { label: 'TX Logs',     icon: ArrowRightLeft,  href: '/dashboard/transactions',  roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
-  { label: 'Threat Intel',icon: ShieldAlert,     href: '/dashboard/security',      roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
-  { label: 'Settings',    icon: Settings,        href: '/dashboard/settings',      roles: ['ADMIN'],                               group: 'SYSTEM' },
+  { label: 'Overview',     icon: LayoutDashboard, href: '/dashboard',              roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'], group: 'CORE' },
+  { label: 'Identity',     icon: Fingerprint,     href: '/dashboard/identity',      roles: ['ADMIN'],                               group: 'CORE' },
+  { label: 'Personnel',    icon: Users,           href: '/dashboard/users',         roles: ['ADMIN'],                               group: 'CORE' },
+  { label: 'Assets',       icon: Boxes,           href: '/dashboard/assets',        roles: ['ADMIN', 'VIEWER', 'ALTER', 'DEBUGGER'], group: 'OPERATIONS' },
+  { label: 'Operations',   icon: GitBranch,       href: '/dashboard/lifecycle',     roles: ['ADMIN', 'ALTER'],                      group: 'OPERATIONS' },
+  { label: 'Doc Vault',    icon: FileText,        href: '/dashboard/documents',     roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
+  { label: 'NFT Gallery',  icon: Coins,           href: '/dashboard/nfts',          roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
+  { label: 'Verify',       icon: ShieldCheck,     href: '/dashboard/verification',  roles: ['ADMIN', 'ALTER', 'DEBUGGER', 'VIEWER'], group: 'DOCUMENTS' },
+  { label: 'AI Analytics', icon: Brain,           href: '/dashboard/ai-analysis',   roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
+  { label: 'TX Logs',      icon: ArrowRightLeft,  href: '/dashboard/transactions',  roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
+  { label: 'Threat Intel', icon: ShieldAlert,     href: '/dashboard/security',      roles: ['ADMIN'],                               group: 'INTELLIGENCE' },
+  { label: 'Settings',     icon: Settings,        href: '/dashboard/settings',      roles: ['ADMIN'],                               group: 'SYSTEM' },
 ];
 
-const NAV_GROUPS = ['MAIN', 'OPERATIONS', 'DOCUMENTS', 'INTELLIGENCE', 'SYSTEM'];
+const NAV_GROUPS = ['CORE', 'OPERATIONS', 'DOCUMENTS', 'INTELLIGENCE', 'SYSTEM'];
+
+/* ── Motion Variants ── */
+const sidebarVariants = {
+  expanded: { width: 256 },
+  collapsed: { width: 72 },
+};
+
+const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+const slideUp = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+};
+
+/* ═══════════════════════════════════════════════════════
+   DASHBOARD SHELL — Premium Layout Wrapper
+   ═══════════════════════════════════════════════════════ */
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -63,15 +88,10 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isVideoReady, setIsVideoReady] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVideoReady(true), 3500);
-    return () => clearTimeout(timer);
-  }, []);
-
+  /* ── Auth ── */
   useEffect(() => {
     const sessionStr = localStorage.getItem('bel_session');
     if (!sessionStr) { router.replace('/login'); return; }
@@ -83,17 +103,18 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
     } catch { router.replace('/login'); }
   }, [router]);
 
+  /* ── Clock ── */
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setCurrentTime(now.toISOString().replace('T', ' ').slice(0, 19) + ' GMT');
+      setCurrentTime(now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC');
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Focus search on shortcut
+  /* ── Search Shortcut ── */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -110,90 +131,123 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
     if (showSearch) setTimeout(() => searchRef.current?.focus(), 100);
   }, [showSearch]);
 
-  const handleLogout = () => {
+  /* ── Close mobile menu on route change ── */
+  useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
+
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('bel_session');
     router.push('/login');
-  };
+  }, [router]);
 
   const userRole = user?.role || 'VIEWER';
   const theme = ROLE_THEMES[userRole] || ROLE_THEMES.VIEWER;
   const navItems = allNavItems.filter(item => item.roles.includes(userRole));
-
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname === href || pathname.startsWith(`${href}/`);
-
   const currentPage = navItems.find(i => isActive(i.href));
-
-  // Search results
   const searchResults = searchQuery
     ? navItems.filter(i => i.label.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
-
   const groupedNav = NAV_GROUPS.map(group => ({
     group,
     items: navItems.filter(i => i.group === group),
   })).filter(g => g.items.length > 0);
 
+  /* ═══════ RENDER ═══════ */
   return (
-    <div className="min-h-screen flex bg-transparent overflow-hidden text-white selection:bg-white/20 selection:text-white relative">
+    <div className="min-h-screen flex bg-transparent overflow-hidden text-white selection:bg-[rgba(0,212,255,0.25)] selection:text-white relative">
 
-      {/* ── Video Background ── */}
-      <div className="fixed inset-0 z-0 overflow-hidden bg-[#020617]">
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${isVideoReady ? 'opacity-80' : 'opacity-0'}`}>
-          <iframe
-            ref={iframeRef}
-            src="https://player.vimeo.com/video/1193028519?h=060f9f2d4e&autoplay=1&muted=1&background=1&controls=0&title=0&byline=0&portrait=0&dnt=1#t=10s"
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 blur-[2px] scale-[1.3] pointer-events-none"
-            style={{ width: '120vw', height: '120vh', minWidth: '120vw', minHeight: '120vh', border: 'none' }}
-            allow="autoplay; fullscreen"
-            loading="eager"
-          />
-        </div>
+      {/* ══════════════ VIDEO BACKGROUND ══════════════ */}
+      <div className="video-bg-container">
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          style={{ opacity: 0.65 }}
+        >
+          <source src="https://cdn.dribbble.com/userupload/49148290/file/d8fac213421343bd48b14b7ede97778e.mp4" type="video/mp4" />
+        </video>
       </div>
-      <div className="fixed inset-0 z-0 bg-[#020617]/75" />
 
-      {/* ── Command Search Overlay ── */}
+      {/* Cinematic overlays */}
+      <div className="video-overlay video-overlay--vignette" />
+      <div className="video-overlay video-overlay--gradient" />
+      <div className="video-overlay video-overlay--sidebar" />
+
+      {/* ══════════════ COMMAND PALETTE ══════════════ */}
       <AnimatePresence>
         {showSearch && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xl flex items-start justify-center pt-[20vh]"
-            onClick={() => setShowSearch(false)}>
-            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2 } }}
+            exit={{ opacity: 0, transition: { duration: 0.15 } }}
+            className="fixed inset-0 z-[100] flex items-start justify-center pt-[18vh]"
+            style={{ background: 'rgba(3, 3, 8, 0.75)', backdropFilter: 'blur(20px)' }}
+            onClick={() => setShowSearch(false)}
+          >
+            <motion.div
+              initial={{ y: -16, opacity: 0, scale: 0.97 }}
+              animate={{ y: 0, opacity: 1, scale: 1, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{ y: -12, opacity: 0, scale: 0.97, transition: { duration: 0.2 } }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg mx-4 bg-[#0a0614]/95 border border-white/[0.12] rounded-2xl shadow-2xl overflow-hidden">
-              <div className="flex items-center gap-3 p-4 border-b border-white/[0.06]">
-                <Search className="w-4 h-4 text-white/30" />
-                <input ref={searchRef} type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              className="w-full max-w-lg mx-4 rounded-2xl overflow-hidden"
+              style={{
+                background: 'rgba(10, 10, 26, 0.92)',
+                border: '1px solid rgba(255, 255, 255, 0.10)',
+                boxShadow: '0 32px 80px -16px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04) inset',
+              }}
+            >
+              {/* Search Input */}
+              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <Search className="w-4 h-4 shrink-0" style={{ color: 'rgba(255, 255, 255, 0.25)' }} />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search navigation..."
-                  className="flex-1 bg-transparent text-sm text-white placeholder-white/25 focus:outline-none font-mono" />
-                <kbd className="text-[9px] text-white/20 font-mono px-2 py-0.5 rounded border border-white/[0.08]">ESC</kbd>
+                  className="flex-1 bg-transparent text-sm text-white placeholder-white/20 focus:outline-none"
+                  style={{ fontFamily: 'var(--font-body)' }}
+                />
+                <kbd className="text-caption px-2 py-0.5 rounded-md" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.2)' }}>ESC</kbd>
               </div>
+
+              {/* Results */}
               {searchResults.length > 0 ? (
                 <div className="p-2">
                   {searchResults.map(item => (
-                    <Link key={item.href} href={item.href} onClick={() => setShowSearch(false)}>
-                      <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.06] transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-                          <item.icon className="w-4 h-4 text-white/40" />
+                    <Link key={item.href} href={item.href} onClick={() => { setShowSearch(false); setSearchQuery(''); }}>
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all" style={{ '--tw-transition-duration': 'var(--duration-fast)' } as React.CSSProperties}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <item.icon className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.35)' }} />
                         </div>
                         <div>
-                          <div className="text-sm text-white">{item.label}</div>
-                          <div className="text-[9px] text-white/25 font-mono">{item.href}</div>
+                          <div className="text-[13px] text-white/90">{item.label}</div>
+                          <div className="text-caption" style={{ color: 'rgba(255,255,255,0.2)' }}>{item.href}</div>
                         </div>
                       </div>
                     </Link>
                   ))}
                 </div>
               ) : searchQuery ? (
-                <div className="p-8 text-center text-sm text-white/30">No results for "{searchQuery}"</div>
+                <div className="px-5 py-10 text-center text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>No results for &ldquo;{searchQuery}&rdquo;</div>
               ) : (
-                <div className="p-4 space-y-1">
-                  <p className="text-[9px] text-white/20 font-mono uppercase tracking-widest px-2 py-1">Quick Navigate</p>
-                  {navItems.slice(0, 6).map(item => (
-                    <Link key={item.href} href={item.href} onClick={() => setShowSearch(false)}>
-                      <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.06] transition-all">
-                        <item.icon className="w-4 h-4 text-white/30" />
-                        <span className="text-sm text-white/60">{item.label}</span>
+                <div className="p-3 space-y-0.5">
+                  <p className="text-caption px-3 py-2" style={{ color: 'rgba(255,255,255,0.15)' }}>Quick navigate</p>
+                  {navItems.slice(0, 7).map(item => (
+                    <Link key={item.href} href={item.href} onClick={() => { setShowSearch(false); setSearchQuery(''); }}>
+                      <div className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150"
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                      >
+                        <item.icon className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.25)' }} />
+                        <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.50)' }}>{item.label}</span>
                       </div>
                     </Link>
                   ))}
@@ -204,50 +258,57 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
+      {/* ══════════════ LOADING STATE ══════════════ */}
       {!isAuthorized || !user ? (
-        <div className="relative z-10 w-full h-screen flex items-center justify-center bg-black/60 backdrop-blur-md">
-          <div className="text-white/50 font-mono text-xs tracking-widest uppercase flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-[#38bdf8] border-t-transparent rounded-full animate-spin" />
-            Initializing Secure Uplink...
+        <div className="relative z-10 w-full h-screen flex items-center justify-center">
+          <div className="flex items-center gap-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'rgba(0, 212, 255, 0.4)', borderTopColor: 'transparent' }} />
+            <span className="text-label">Initializing secure session...</span>
           </div>
         </div>
       ) : (
         <>
-          {/* ── Mobile Nav Toggle ── */}
+          {/* ══════════════ MOBILE TOGGLE ══════════════ */}
           <button
-            className="lg:hidden fixed top-4 right-4 z-50 p-2 bg-white/10 border border-white/10 rounded-xl backdrop-blur-xl"
+            className="lg:hidden fixed top-4 right-4 z-50 p-2.5 rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(8, 8, 20, 0.70)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.10)',
+            }}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
-            {mobileMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
+            {mobileMenuOpen ? <X className="w-5 h-5 text-white/80" /> : <Menu className="w-5 h-5 text-white/80" />}
           </button>
 
-          {/* ── Sidebar ── */}
+          {/* ══════════════ SIDEBAR ══════════════ */}
           <motion.aside
             initial={false}
-            animate={{ width: collapsed ? 72 : 260 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="relative z-20 hidden lg:flex flex-col border-r border-white/[0.06] bg-white/[0.025] backdrop-blur-2xl"
+            variants={sidebarVariants}
+            animate={collapsed ? 'collapsed' : 'expanded'}
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+            className="relative z-20 hidden lg:flex flex-col glass--sidebar h-screen"
           >
-            {/* Logo */}
-            <div className="h-20 flex items-center px-5 border-b border-white/[0.06] relative overflow-hidden">
-              <div className="absolute inset-0 opacity-[0.015]"
-                style={{ backgroundImage: 'linear-gradient(45deg, rgba(124,92,252,0.5) 25%, transparent 25%, transparent 75%, rgba(124,92,252,0.5) 75%)', backgroundSize: '8px 8px' }} />
-              <div className="relative z-10 flex items-center gap-3">
+            {/* ── Logo Region ── */}
+            <div className="h-[72px] flex items-center px-5 shrink-0" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
-                  <div className="w-8 h-8 rounded-xl bg-[#7c5cfc]/15 border border-[#7c5cfc]/30 flex items-center justify-center">
-                    <Crosshair className="w-4 h-4 text-[#7c5cfc]" />
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center"
+                    style={{ background: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.20)' }}>
+                    <Crosshair className="w-4 h-4" style={{ color: 'var(--accent)' }} />
                   </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#10b981] border-2 border-[#020617] animate-pulse" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                    style={{ background: 'var(--success)', borderColor: 'var(--bg-void)' }} />
                 </div>
                 <AnimatePresence>
                   {!collapsed && (
-                    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                      className="overflow-hidden whitespace-nowrap">
-                      <div className="text-[13px] font-bold tracking-[0.2em] uppercase text-white" style={{ fontFamily: 'var(--font-display)' }}>
+                    <motion.div {...fadeIn} transition={{ duration: 0.2, delay: 0.05 }} className="overflow-hidden whitespace-nowrap">
+                      <div className="text-[12px] font-semibold tracking-[0.18em] uppercase text-white/90" style={{ fontFamily: 'var(--font-display)' }}>
                         BEL SENTINEL
                       </div>
-                      <div className="text-[8px] text-white/30 tracking-[0.15em] uppercase font-mono mt-0.5">
-                        Tactical Network v2.1
+                      <div className="text-caption mt-0.5" style={{ color: 'rgba(255,255,255,0.20)' }}>
+                        Tactical Network v3.0
                       </div>
                     </motion.div>
                   )}
@@ -255,36 +316,52 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            {/* User Card */}
-            <div className="p-3 border-b border-white/[0.06]">
-              <div className={`p-3 rounded-xl border border-white/[0.07] bg-white/[0.03] flex items-center transition-all duration-300 ${collapsed ? 'justify-center' : 'gap-3'}`}
-                style={{ boxShadow: `0 0 20px ${theme.glow}` }}>
-                <div className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center relative font-bold text-sm"
-                  style={{ background: theme.bg, border: `1px solid ${theme.accent}30`, color: theme.accent }}>
+            {/* ── User Card ── */}
+            <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+              <div
+                className={`flex items-center rounded-xl transition-all duration-300 ${collapsed ? 'justify-center p-2.5' : 'gap-3 p-3'}`}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.025)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <div className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center relative text-sm font-semibold"
+                  style={{
+                    background: `${theme.accent}12`,
+                    border: `1px solid ${theme.accent}30`,
+                    color: theme.accent,
+                  }}>
                   {user.displayName.charAt(0)}
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#10b981] border-2 border-[#020617]" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                    style={{ background: 'var(--success)', borderColor: 'rgba(6, 6, 16, 0.9)' }} />
                 </div>
-                {!collapsed && (
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-white truncate font-mono uppercase">{user.displayName}</div>
-                    <div className="text-[8px] truncate font-mono tracking-wider mt-0.5" style={{ color: theme.accent }}>
-                      {theme.label} · {user.department || 'HQ'}
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.div {...fadeIn} transition={{ duration: 0.2 }} className="flex-1 min-w-0">
+                      <div className="text-[11px] font-semibold text-white/85 truncate" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                        {user.displayName}
+                      </div>
+                      <div className="text-[8px] truncate mt-0.5" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', color: theme.accent }}>
+                        {theme.label} · {user.department || 'HQ'}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
-            {/* Nav */}
+            {/* ── Navigation ── */}
             <div className="flex-1 overflow-y-auto py-3 px-2 scrollbar-hide">
-              <nav className="space-y-4">
+              <nav className="space-y-5">
                 {groupedNav.map(({ group, items }) => (
                   <div key={group}>
-                    {!collapsed && (
-                      <div className="px-3 mb-1.5">
-                        <span className="text-[7px] text-white/20 font-mono tracking-[0.2em] uppercase">{group}</span>
-                      </div>
-                    )}
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.div {...fadeIn} transition={{ duration: 0.15 }} className="px-3 mb-2">
+                          <span className="text-caption">{group}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <div className="space-y-0.5">
                       {items.map((item) => {
                         const active = isActive(item.href);
@@ -292,31 +369,43 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                           <Link key={item.href} href={item.href}
                             onMouseEnter={() => setHoveredItem(item.href)}
                             onMouseLeave={() => setHoveredItem(null)}>
-                            <div className={`group relative flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2.5 rounded-xl transition-all duration-200 ${
-                              active
-                                ? 'bg-white/[0.1] border border-white/[0.1] shadow-[0_0_20px_rgba(255,255,255,0.03)]'
-                                : 'border border-transparent hover:bg-white/[0.05] hover:border-white/[0.06]'
-                            }`}>
-                              {/* Active indicator */}
-                              {active && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full"
-                                  style={{ background: theme.accent, boxShadow: `0 0 8px ${theme.accent}` }} />
-                              )}
+                            <div className={`nav-item ${active ? 'nav-item--active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}>
+                              {/* Active indicator bar */}
+                              {active && <div className="nav-indicator" />}
 
-                              <item.icon className={`shrink-0 stroke-[1.5] transition-all duration-200 ${collapsed ? 'w-[18px] h-[18px]' : 'w-4 h-4'}`}
-                                style={{ color: active ? theme.accent : hoveredItem === item.href ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)' }} />
+                              <item.icon
+                                className={`shrink-0 stroke-[1.5] transition-colors duration-200 ${collapsed ? 'w-[18px] h-[18px]' : 'w-4 h-4'}`}
+                                style={{
+                                  color: active
+                                    ? theme.accent
+                                    : hoveredItem === item.href
+                                    ? 'rgba(255, 255, 255, 0.6)'
+                                    : 'rgba(255, 255, 255, 0.25)',
+                                }}
+                              />
 
-                              {!collapsed && (
-                                <span className={`ml-3 text-[10px] uppercase tracking-widest font-medium font-mono transition-colors ${
-                                  active ? 'text-white' : 'text-white/40 group-hover:text-white/70'
-                                }`}>
-                                  {item.label}
-                                </span>
-                              )}
+                              <AnimatePresence>
+                                {!collapsed && (
+                                  <motion.span {...fadeIn} transition={{ duration: 0.15 }}
+                                    className={`text-[10px] uppercase tracking-[0.12em] font-medium transition-colors duration-200 ${
+                                      active ? 'text-white/90' : 'text-white/35'
+                                    }`}
+                                    style={{ fontFamily: 'var(--font-mono)' }}
+                                  >
+                                    {item.label}
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
 
-                              {/* Tooltip for collapsed */}
+                              {/* Collapsed tooltip */}
                               {collapsed && hoveredItem === item.href && (
-                                <div className="absolute left-full ml-3 z-50 px-3 py-1.5 rounded-lg bg-[#0a0614]/95 border border-white/[0.1] text-[10px] text-white font-mono whitespace-nowrap shadow-xl">
+                                <div className="absolute left-full ml-3 z-50 px-3 py-1.5 rounded-lg whitespace-nowrap text-[10px] text-white/90"
+                                  style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    background: 'rgba(10, 10, 26, 0.95)',
+                                    border: '1px solid rgba(255, 255, 255, 0.10)',
+                                    boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.5)',
+                                  }}>
                                   {item.label}
                                 </div>
                               )}
@@ -330,152 +419,212 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
               </nav>
             </div>
 
-            {/* System Status (non-collapsed) */}
-            {!collapsed && (
-              <div className="px-3 py-3 border-t border-b border-white/[0.06]">
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { icon: Wifi, label: 'NET', color: '#10b981' },
-                    { icon: Cpu, label: 'SYS', color: '#38bdf8' },
-                    { icon: Lock, label: 'ENC', color: '#fbbf24' },
-                  ].map(({ icon: Icon, label, color }) => (
-                    <div key={label} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                      <Icon className="w-3 h-3" style={{ color }} />
-                      <div className="text-[7px] font-mono" style={{ color }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* ── System Indicators (expanded only) ── */}
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div {...fadeIn} transition={{ duration: 0.2 }} className="px-3 py-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { icon: Wifi, label: 'NET', color: 'var(--success)' },
+                      { icon: Cpu, label: 'SYS', color: 'var(--accent)' },
+                      { icon: Lock, label: 'ENC', color: 'var(--secondary)' },
+                    ].map(({ icon: Icon, label, color }) => (
+                      <div key={label} className="flex flex-col items-center gap-1 py-2 rounded-lg transition-colors duration-200"
+                        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <Icon className="w-3 h-3" style={{ color }} />
+                        <div className="text-[7px] tracking-[0.15em] uppercase" style={{ fontFamily: 'var(--font-mono)', color }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Footer */}
-            <div className="p-3 space-y-1.5">
+            {/* ── Footer Actions ── */}
+            <div className="px-2 py-3 space-y-1 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
               <button onClick={() => setShowSearch(true)}
-                className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-white/40 border border-white/[0.06] hover:bg-white/[0.06] hover:text-white/70 transition-all`}>
+                className={`w-full btn-ghost ${collapsed ? 'justify-center' : ''}`}>
                 <Search className="w-4 h-4 shrink-0" />
                 {!collapsed && (
                   <div className="flex-1 flex items-center justify-between">
-                    <span className="text-[10px] font-mono tracking-wider">Search</span>
-                    <kbd className="text-[8px] text-white/15 font-mono px-1.5 py-0.5 rounded border border-white/[0.06]">⌘K</kbd>
+                    <span>Search</span>
+                    <kbd className="text-[8px] px-1.5 py-0.5 rounded-md"
+                      style={{ color: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: 'var(--font-mono)' }}>⌘K</kbd>
                   </div>
                 )}
               </button>
 
               <button onClick={handleLogout}
-                className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-white/40 border border-transparent hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-400 transition-all group`}>
-                <LogOut className="w-4 h-4 shrink-0 group-hover:text-red-400 transition-colors" />
-                {!collapsed && <span className="text-[10px] font-mono uppercase tracking-widest">Disconnect</span>}
+                className={`w-full btn-ghost group ${collapsed ? 'justify-center' : ''}`}
+                style={{ '--hover-bg': 'rgba(239, 68, 68, 0.06)' } as React.CSSProperties}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239, 68, 68, 0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239, 68, 68, 0.15)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
+              >
+                <LogOut className="w-4 h-4 shrink-0 transition-colors duration-200 group-hover:text-red-400" />
+                {!collapsed && <span className="group-hover:text-red-400 transition-colors duration-200">Disconnect</span>}
               </button>
             </div>
           </motion.aside>
 
-          {/* ── Main Content ── */}
+          {/* ══════════════ MAIN CONTENT AREA ══════════════ */}
           <main className="flex-1 relative z-10 flex flex-col min-w-0 h-screen overflow-hidden">
 
             {/* ── Top Header ── */}
-            <header className="h-20 shrink-0 border-b border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl flex items-center justify-between px-6 relative">
-              {/* Left: Collapse + Breadcrumb */}
-              <div className="flex items-center gap-4">
-                <button onClick={() => setCollapsed(!collapsed)}
-                  className="hidden lg:flex p-2 rounded-xl hover:bg-white/[0.06] text-white/40 hover:text-white transition-all border border-transparent hover:border-white/[0.08]">
+            <header className="h-[64px] shrink-0 glass--header flex items-center justify-between px-5 lg:px-6">
+              {/* Left */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCollapsed(!collapsed)}
+                  className="hidden lg:flex btn-ghost p-2"
+                  aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
                   {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </button>
-                <div className="h-4 w-[1px] bg-white/10 hidden lg:block" />
-                <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono tracking-[0.15em] uppercase">
-                  <span className="text-white/20">BEL SENTINEL</span>
-                  <span className="text-white/10">/</span>
-                  <span className="text-white/60">{currentPage?.label || 'Command Node'}</span>
+                <div className="hidden lg:block h-4 w-px" style={{ background: 'rgba(255, 255, 255, 0.08)' }} />
+                <div className="hidden sm:flex items-center gap-2" style={{ fontFamily: 'var(--font-mono)' }}>
+                  <span className="text-[10px] tracking-[0.15em] uppercase" style={{ color: 'rgba(255, 255, 255, 0.18)' }}>SENTINEL</span>
+                  <span style={{ color: 'rgba(255, 255, 255, 0.08)' }}>/</span>
+                  <span className="text-[10px] tracking-[0.12em] uppercase" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                    {currentPage?.label || 'Dashboard'}
+                  </span>
                 </div>
               </div>
 
-              {/* Right: Status + Controls */}
-              <div className="flex items-center gap-4">
-                {/* Search Trigger */}
+              {/* Right */}
+              <div className="flex items-center gap-3">
+                {/* Search trigger */}
                 <button onClick={() => setShowSearch(true)}
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-white/30 hover:text-white/60 transition-all text-[10px] font-mono">
+                  className="hidden md:flex items-center gap-2 btn-ghost px-3 py-1.5">
                   <Search className="w-3.5 h-3.5" />
-                  <span>Search...</span>
-                  <kbd className="text-[8px] text-white/15 ml-2 px-1.5 py-0.5 rounded border border-white/[0.06]">⌘K</kbd>
+                  <span className="text-[10px]" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>Search</span>
+                  <kbd className="text-[8px] ml-1 px-1.5 py-0.5 rounded-md"
+                    style={{ color: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: 'var(--font-mono)' }}>⌘K</kbd>
                 </button>
 
-                {/* System Online Pill */}
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-                  <span className="text-[9px] font-mono tracking-widest text-[#10b981] uppercase hidden sm:block">ONLINE</span>
+                {/* System status pill */}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+                  style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <span className="status-dot status-dot--online" />
+                  <span className="text-[9px] tracking-[0.15em] uppercase hidden sm:block"
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>ONLINE</span>
                 </div>
 
-                {/* Clock */}
+                {/* Time */}
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-[10px] font-mono tracking-widest text-white/70">{currentTime}</span>
-                  <span className="text-[7px] font-mono tracking-[0.2em] text-white/25 uppercase">Global Sync</span>
+                  <span className="text-[10px] tracking-[0.1em]"
+                    style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255, 255, 255, 0.55)' }}>{currentTime}</span>
+                  <span className="text-caption" style={{ color: 'rgba(255,255,255,0.15)' }}>Global Sync</span>
                 </div>
 
-                {/* Role Indicator + Logout */}
-                <div className="flex items-center gap-2 pl-4 border-l border-white/[0.08]">
-                  <div className="px-2.5 py-1.5 rounded-xl border text-[9px] font-mono uppercase tracking-wider flex items-center gap-1.5"
-                    style={{ color: theme.accent, background: theme.bg, borderColor: `${theme.accent}20` }}>
+                {/* Divider + Role + Logout */}
+                <div className="flex items-center gap-2 pl-3" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <div className="px-2.5 py-1.5 rounded-[10px] flex items-center gap-1.5 text-[9px] tracking-[0.12em] uppercase"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      color: theme.accent,
+                      background: `${theme.accent}0a`,
+                      border: `1px solid ${theme.accent}18`,
+                    }}>
                     {userRole === 'ADMIN' ? <ShieldAlert className="w-3 h-3" /> :
-                     userRole === 'DEBUGGER' ? <Terminal className="w-3 h-3" /> :
-                     userRole === 'ALTER' ? <Zap className="w-3 h-3" /> :
-                     <Activity className="w-3 h-3" />}
-                    <span className="hidden sm:inline">{userRole}</span>
+                     userRole === 'DEBUGGER' ? <Cpu className="w-3 h-3" /> :
+                     userRole === 'ALTER' ? <GitBranch className="w-3 h-3" /> :
+                     <LayoutDashboard className="w-3 h-3" />}
+                    <span className="hidden sm:inline font-medium">{userRole}</span>
                   </div>
+
                   <button onClick={handleLogout}
-                    className="p-2.5 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 border border-white/[0.06] hover:border-red-500/20 transition-all group"
-                    title="Disconnect Session">
-                    <LogOut className="w-4 h-4 transition-colors" />
+                    className="btn-ghost p-2 group"
+                    title="Disconnect Session"
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239, 68, 68, 0.08)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  >
+                    <LogOut className="w-4 h-4 transition-colors duration-200 group-hover:text-red-400" />
                   </button>
                 </div>
               </div>
             </header>
 
             {/* ── Scrollable Content ── */}
-            <div className="flex-1 overflow-auto p-4 md:p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              <div className="max-w-[1600px] mx-auto">
+            <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+              <motion.div
+                key={pathname}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="max-w-[1600px] mx-auto"
+              >
                 {children}
-              </div>
+              </motion.div>
             </div>
           </main>
 
-          {/* ── Mobile Overlay Menu ── */}
+          {/* ══════════════ MOBILE MENU ══════════════ */}
           <AnimatePresence>
             {mobileMenuOpen && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-black/90 backdrop-blur-xl lg:hidden flex flex-col pt-20">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { duration: 0.25 } }}
+                exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                className="fixed inset-0 z-40 lg:hidden flex flex-col pt-16"
+                style={{
+                  background: 'rgba(3, 3, 8, 0.92)',
+                  backdropFilter: 'blur(32px)',
+                }}
+              >
                 <div className="flex-1 overflow-y-auto px-4 py-4">
-                  {/* User card mobile */}
-                  <div className="p-4 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center gap-3 mb-4"
-                    style={{ boxShadow: `0 0 20px ${theme.glow}` }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base"
-                      style={{ background: theme.bg, color: theme.accent, border: `1px solid ${theme.accent}30` }}>
+                  {/* Mobile user card */}
+                  <div className="p-4 rounded-xl mb-4 flex items-center gap-3"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.07)',
+                    }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-base"
+                      style={{ background: `${theme.accent}12`, color: theme.accent, border: `1px solid ${theme.accent}25` }}>
                       {user.displayName.charAt(0)}
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white font-mono uppercase">{user.displayName}</div>
-                      <div className="text-[9px] font-mono mt-0.5" style={{ color: theme.accent }}>{theme.label}</div>
+                      <div className="text-sm font-semibold text-white/90 uppercase" style={{ fontFamily: 'var(--font-mono)' }}>{user.displayName}</div>
+                      <div className="text-[9px] mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: theme.accent, letterSpacing: '0.1em' }}>{theme.label}</div>
                     </div>
                   </div>
 
+                  {/* Mobile nav */}
                   <nav className="space-y-1">
-                    {navItems.map((item) => (
-                      <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
-                        <div className={`flex items-center px-4 py-3.5 rounded-xl border backdrop-blur-md transition-all ${
-                          pathname === item.href
-                            ? 'bg-white/[0.08] border-white/[0.12] text-white'
-                            : 'border-white/[0.06] bg-white/[0.02] text-white/50'
-                        }`}>
-                          <item.icon className="w-5 h-5 shrink-0 stroke-[1.5]"
-                            style={{ color: pathname === item.href ? theme.accent : undefined }} />
-                          <span className="ml-4 text-xs uppercase tracking-widest font-mono">{item.label}</span>
-                        </div>
-                      </Link>
+                    {navItems.map((item, i) => (
+                      <motion.div
+                        key={item.href}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0, transition: { delay: i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] } }}
+                      >
+                        <Link href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                          <div className={`flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ${
+                            isActive(item.href)
+                              ? 'text-white/90'
+                              : 'text-white/40'
+                          }`}
+                            style={{
+                              background: isActive(item.href) ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                              border: `1px solid ${isActive(item.href) ? 'rgba(255, 255, 255, 0.08)' : 'transparent'}`,
+                            }}
+                          >
+                            <item.icon className="w-5 h-5 shrink-0 stroke-[1.5]"
+                              style={{ color: isActive(item.href) ? theme.accent : undefined }} />
+                            <span className="ml-4 text-xs uppercase tracking-[0.12em]" style={{ fontFamily: 'var(--font-mono)' }}>{item.label}</span>
+                          </div>
+                        </Link>
+                      </motion.div>
                     ))}
                   </nav>
                 </div>
 
-                <div className="p-4 border-t border-white/[0.06]">
+                <div className="p-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                   <button onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 font-mono text-xs uppercase tracking-widest">
+                    className="w-full flex items-center justify-center gap-3 p-4 rounded-xl text-red-400 text-xs uppercase tracking-[0.12em]"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      background: 'rgba(239, 68, 68, 0.06)',
+                      border: '1px solid rgba(239, 68, 68, 0.15)',
+                    }}>
                     <LogOut className="w-4 h-4" /> Disconnect
                   </button>
                 </div>
