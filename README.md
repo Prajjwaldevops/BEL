@@ -27,7 +27,7 @@ A blockchain-anchored identity, asset management, and zero-trust access control 
           │                  │                  │
           ▼                  ▼                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Backend API (Next.js API Routes)            │
+│             Backend API (Go Gin & Next.js API Routes)            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
 │  │  /api/auth   │  │ /api/assets  │  │ /api/audit   │          │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
@@ -101,11 +101,13 @@ A blockchain-anchored identity, asset management, and zero-trust access control 
 - **Ownership Proofs** - Prove asset ownership without revealing identity
 - Commitment-based ZK system (production-ready for zk-SNARKs/STARKs integration)
 
-### 🤖 AWS Bedrock AI Security
-- Real-time threat analysis using Claude 3
-- Anomaly detection in user behavior
-- Automated security report generation
-- Contextual risk scoring
+### 🤖 AWS Bedrock AI Security (Powered by Claude 3 Sonnet)
+The platform integrates deeply with **AWS Bedrock** and Anthropic's **Claude 3 Sonnet** (`anthropic.claude-3-sonnet-20240229-v1:0`) to deliver advanced, real-time threat intelligence and automated security monitoring:
+- **Login Pattern Analysis:** Evaluates recent authentication attempts to detect impossible travel (rapid geographic changes), brute force attempts, time-of-day anomalies, and changes in device footprints.
+- **Transaction & Access Pattern Analysis:** Identifies suspicious activities such as data exfiltration attempts (bulk downloads), privilege escalation, lateral movement indicators, and unusual access scopes across departments.
+- **Real-Time Threat Scoring:** Computes dynamic risk scores (0-100) based on action severity, operational hours, and context (new device, new IP, new location).
+- **Automated Incident Response:** Generates structured security analysis results detailing threat levels (LOW, MEDIUM, HIGH, CRITICAL), confidence scores, specific threat indicators, and actionable mitigation steps.
+- **Automated Security Reports:** Analyzes large subsets of aggregated incident data over 7d/30d/90d intervals to generate comprehensive security posture reports.
 
 ---
 
@@ -116,7 +118,7 @@ A blockchain-anchored identity, asset management, and zero-trust access control 
 - Node.js 20+
 - PostgreSQL (via Supabase)
 - MetaMask or compatible Web3 wallet
-- AWS Account (for Bedrock AI security features)
+- AWS Account (with Bedrock Model Access enabled for Anthropic Claude 3 Sonnet)
 
 ### 1. Start Local Blockchain
 
@@ -150,19 +152,16 @@ cp .env.example .env.local
 # - Supabase credentials
 # - Deployed contract addresses from step 2
 # - RPC URL (http://localhost:8545 for local)
-```
-
-### 4. Setup Database
-
-```bash
-# Run migrations
-psql $DATABASE_URL < database/schema.sql
-psql $DATABASE_URL < database/migrations/*.sql
+# - AWS Bedrock Credentials
 ```
 
 ### 5. Start Backend & Frontend
 
 ```bash
+# Terminal 1: Start Go Backend
+npm run backend
+
+# Terminal 2: Start Next.js App
 npm install
 npm run dev
 ```
@@ -214,10 +213,11 @@ npm run lint
 ## 🛠️ Tech Stack
 
 **Frontend:** Next.js 16.3.5, TypeScript, Tailwind CSS, Framer Motion  
-**Backend:** Next.js API Routes, Supabase (Postgres), node-cron scheduler  
+**Backend:** Go (Gin Framework), Next.js API Routes, Supabase (Postgres), node-cron scheduler  
 **Blockchain:** Hardhat, Solidity 0.8.20, OpenZeppelin Contracts, ethers.js  
 **Storage:** Cloudflare R2 (photos), IPFS/Pinata (documents)  
-**Auth:** Wallet signatures (EIP-191/EIP-712), JWT sessions
+**Auth:** Wallet signatures (EIP-191/EIP-712), JWT sessions  
+**AI Security:** AWS Bedrock (Claude 3 Sonnet), AWS SDK
 
 ---
 
@@ -236,6 +236,7 @@ npm run lint
 
 ```
 bel-secure-platform/
+├── backend/                # Go (Gin) backend services
 ├── contracts/              # Solidity smart contracts
 │   ├── IdentityNFT.sol         # Soulbound identity tokens (ERC-721)
 │   ├── AssetNFT.sol            # Asset provenance NFTs
@@ -247,7 +248,7 @@ bel-secure-platform/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   ├── components/             # React UI components
-│   ├── lib/                    # Utilities, constants, API helpers
+│   ├── lib/                    # Utilities, constants, API helpers (incl. AWS Bedrock)
 │   └── providers/              # Context providers (wallet, auth)
 ├── docs/                   # Documentation (ARCHITECTURE, API, SECURITY)
 ├── scripts/                # Deployment scripts
@@ -268,17 +269,17 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-key
 NEXT_PUBLIC_CHAIN_ID=11155111  # Sepolia testnet
 NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/YOUR_KEY
 
-# Contract Addresses (from deployment)
-NEXT_PUBLIC_IDENTITY_NFT_ADDRESS=0x...
-NEXT_PUBLIC_ASSET_NFT_ADDRESS=0x...
-NEXT_PUBLIC_AUDIT_REGISTRY_ADDRESS=0x...
-
 # Storage
 CLOUDFLARE_R2_ACCOUNT_ID=your-account-id
 CLOUDFLARE_R2_ACCESS_KEY_ID=your-access-key
 CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-secret
 PINATA_API_KEY=your-pinata-key
 PINATA_SECRET_API_KEY=your-pinata-secret
+
+# AWS Bedrock Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 
 # JWT
 JWT_SECRET=generate-with-openssl-rand-hex-32
